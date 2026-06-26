@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맘스세이프 (Mom's Safe) — 공공 모자보건 안전망</title>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-analytics.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAxWIciEwr7cNjMMne9IhCojNISihTnOYU",
+    authDomain: "momsafe.firebaseapp.com",
+    projectId: "momsafe",
+    storageBucket: "momsafe.firebasestorage.app",
+    messagingSenderId: "683132181928",
+    appId: "1:683132181928:web:28c1072a1c3d469e16519d",
+    measurementId: "G-N5KJVTRFGL"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+</script>
+<style>
+  :root{
+    --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c22; --line:#2a2a33;
+    --txt:#e9e9ee; --mut:#9a9aa6; --dim:#6b6b76;
+    --mom:#9fe0b8; --sys:#bcb4f0; --health:#f5c79e; --emer:#f3d98a;
+    --red:#ff6b6b; --green:#54d98c; --amber:#ffcf5c; --blue:#7db4ff;
+    --r:14px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1240px;margin:0 auto;padding:0 22px 60px}
+
+  /* ===== Top bar ===== */
+  header{position:sticky;top:0;z-index:50;background:rgba(10,10,12,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  .topbar{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 22px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--mom),var(--sys));display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
+  .brand small{display:block;font-size:11px;font-weight:500;color:var(--mut);letter-spacing:0}
+  .roles{margin-left:auto;display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);padding:5px;border-radius:12px}
+  .roles button{background:none;border:none;color:var(--mut);font-size:13.5px;font-weight:600;padding:8px 15px;border-radius:8px;cursor:pointer;font-family:inherit;transition:.15s;white-space:nowrap}
+  .roles button:hover{color:var(--txt)}
+  .roles button.on{background:var(--panel2);color:var(--txt);box-shadow:0 1px 0 rgba(255,255,255,.04)}
+  .roles button.on.r-health{color:var(--health)} .roles button.on.r-119{color:var(--emer)} .roles button.on.r-hosp{color:var(--sys)}
+
+  /* ===== Generic ===== */
+  .view{display:none;padding-top:26px} .view.on{display:block;animation:fade .25s}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .vhead{display:flex;align-items:flex-end;gap:14px;margin-bottom:20px;flex-wrap:wrap}
+  .vhead h1{font-size:23px;font-weight:800;letter-spacing:-.5px}
+  .vhead p{color:var(--mut);font-size:13.5px}
+  .tag{font-size:11px;font-weight:700;padding:4px 9px;border-radius:6px;background:var(--panel2);color:var(--mut);border:1px solid var(--line)}
+
+  .grid{display:grid;gap:16px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:18px}
+  .panel h3{font-size:13px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.6px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+
+  /* KPI */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+  .kpi{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px}
+  .kpi .n{font-size:30px;font-weight:800;letter-spacing:-1px}
+  .kpi .l{font-size:12.5px;color:var(--mut);margin-top:2px}
+  .kpi .s{font-size:11px;margin-top:6px;color:var(--dim)}
+
+  /* table */
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.5px;padding:0 12px 10px}
+  td{padding:12px;border-top:1px solid var(--line);font-size:13.5px;vertical-align:middle}
+  tbody tr{cursor:pointer;transition:.12s} tbody tr:hover{background:var(--panel2)}
+
+  .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
+  .b-low{background:rgba(84,217,140,.14);color:var(--green)}
+  .b-mid{background:rgba(255,207,92,.14);color:var(--amber)}
+  .b-high{background:rgba(245,140,110,.16);color:#ff9b6b}
+  .b-emer{background:rgba(255,107,107,.16);color:var(--red)}
+  .pill{font-size:11px;padding:3px 9px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
+
+  .avatar{width:34px;height:34px;border-radius:9px;background:var(--panel2);display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--mom);border:1px solid var(--line);flex:0 0 auto}
+  .who{display:flex;align-items:center;gap:11px}
+  .who b{font-size:14px;font-weight:700} .who span{font-size:11.5px;color:var(--dim)}
+
+  .btn{font-family:inherit;font-weight:700;font-size:13.5px;border-radius:9px;padding:10px 16px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);cursor:pointer;transition:.15s}
+  .btn:hover{border-color:#3a3a45}
+  .btn.pri{background:linear-gradient(135deg,var(--sys),#9d92ea);border:none;color:#16131f}
+  .btn.ok{background:var(--green);border:none;color:#08210f}
+  .btn.danger{background:rgba(255,107,107,.16);border-color:rgba(255,107,107,.3);color:var(--red)}
+  .btn.sm{padding:7px 12px;font-size:12.5px}
+  .btn:disabled{opacity:.4;cursor:not-allowed}
+
+  input,textarea,select{font-family:inherit;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:9px;padding:10px 12px;font-size:13.5px;width:100%}
+  input:focus,textarea:focus{outline:none;border-color:var(--sys)}
+  label.f{display:block;font-size:12px;color:var(--mut);font-weight:600;margin:0 0 6px}
+
+  /* modal/drawer */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:90;display:none;backdrop-filter:blur(2px)}
+  .scrim.on{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:520px;max-width:92vw;background:var(--bg);border-left:1px solid var(--line);z-index:100;transform:translateX(100%);transition:.28s cubic-bezier(.2,.7,.3,1);overflow-y:auto;padding:24px}
+  .drawer.on{transform:translateX(0)}
+  .drawer .x{position:absolute;top:18px;right:18px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px}
+
+  .meter{height:9px;border-radius:6px;background:var(--panel2);overflow:hidden;border:1px solid var(--line)}
+  .meter i{display:block;height:100%;border-radius:6px;transition:width .6s}
+
+  .rulebox{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12.5px;color:var(--mut)}
+  .rulebox .row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px dashed var(--line)}
+  .rulebox .row:last-child{border:none}
+  .rulebox .row b{color:var(--txt)}
+  .plus{color:var(--red);font-weight:700;flex:0 0 auto}
+
+  .chip{display:inline-block;font-size:11.5px;padding:5px 11px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);cursor:pointer;margin:0 6px 6px 0;transition:.12s}
+  .chip:hover{border-color:var(--sys);color:var(--txt)}
+  .chip.on{background:rgba(255,107,107,.16);border-color:rgba(255,107,107,.4);color:var(--red)}
+
+  /* hospital priority cards */
+  .hosp{display:flex;align-items:center;gap:14px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:10px;transition:.15s}
+  .hosp.rank1{border-color:rgba(188,180,240,.5);box-shadow:0 0 0 1px rgba(188,180,240,.15)}
+  .rk{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:var(--panel);border:1px solid var(--line);color:var(--mut);flex:0 0 auto}
+  .rank1 .rk{background:var(--sys);color:#16131f;border:none}
+  .hosp .info{flex:1;min-width:0}
+  .hosp .info b{font-size:14.5px} .hosp .info .meta{font-size:11.5px;color:var(--dim);margin-top:2px}
+  .fit{text-align:right;flex:0 0 auto}
+  .fit .sc{font-size:18px;font-weight:800} .fit .lbl{font-size:10px;color:var(--dim)}
+
+  /* relay log */
+  .relay{position:relative;padding-left:26px}
+  .relay .step{position:relative;padding:0 0 16px}
+  .relay .step:before{content:'';position:absolute;left:-19px;top:4px;width:11px;height:11px;border-radius:50%;background:var(--panel);border:2px solid var(--line)}
+  .relay .step.done:before{background:var(--green);border-color:var(--green)}
+  .relay .step.fail:before{background:var(--red);border-color:var(--red)}
+  .relay .step.act:before{background:var(--sys);border-color:var(--sys);box-shadow:0 0 0 4px rgba(188,180,240,.18)}
+  .relay:before{content:'';position:absolute;left:1px;top:6px;bottom:10px;width:2px;background:var(--line)}
+  .relay .t{font-size:13.5px;font-weight:700} .relay .d{font-size:12px;color:var(--mut)}
+  .relay .ts{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;flex:0 0 auto}
+
+  .incoming{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--panel)}
+  .incoming.urgent{border-color:rgba(255,107,107,.45);background:linear-gradient(180deg,rgba(255,107,107,.06),transparent)}
+  .blink{animation:bl 1s infinite} @keyframes bl{50%{opacity:.45}}
+
+  .muted{color:var(--mut)} .small{font-size:12px} .mono{font-variant-numeric:tabular-nums}
+  .flex{display:flex;align-items:center;gap:10px} .between{justify-content:space-between}
+  .empty{text-align:center;color:var(--dim);padding:36px 10px;font-size:13.5px}
+  footer{color:var(--dim);font-size:12px;text-align:center;margin-top:36px;line-height:1.8}
+
+  /* ===== Tablet ===== */
+  @media(max-width:860px){
+    .two{grid-template-columns:1fr!important}
+    .vhead p{margin-left:0!important;width:100%}
+  }
+
+  /* ===== Mobile ===== */
+  @media(max-width:600px){
+    .wrap{padding:0 12px 50px}
+    .topbar{flex-wrap:wrap;gap:12px;padding:12px 14px}
+    .brand{font-size:17px} .brand small{display:none}
+    .roles{margin-left:0;width:100%;gap:4px;padding:4px}
+    .roles button{flex:1;padding:9px 4px;font-size:12px;text-align:center;white-space:normal}
+    .view{padding-top:18px}
+    .vhead{gap:8px;margin-bottom:16px}
+    .vhead h1{font-size:19px}
+    .vhead p{font-size:12.5px}
+    .kpis{grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+    .kpi{padding:13px 14px} .kpi .n{font-size:24px}
+    .panel{padding:14px}
+    .drawer{width:100%;max-width:100%;padding:20px 16px}
+
+    /* table → stacked cards */
+    table thead{display:none}
+    table,tbody,tr,td{display:block;width:100%}
+    tbody tr{border:1px solid var(--line);border-radius:12px;margin-bottom:10px;background:var(--panel2);padding:4px 2px}
+    td{border:none;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:9px 14px;text-align:right}
+    td:before{content:attr(data-label);font-size:11px;color:var(--dim);font-weight:700;letter-spacing:.4px;flex:0 0 auto;text-align:left}
+    td[data-label="산모"]{border-bottom:1px solid var(--line);padding-bottom:11px;margin-bottom:3px;justify-content:flex-start}
+    td[data-label="산모"]:before{display:none}
+    td .small.muted{text-align:right}
+
+    .hosp{gap:10px;padding:11px 12px}
+    .hosp .info b{font-size:14px} .hosp .info .meta{font-size:11px}
+    .fit .sc{font-size:16px}
+
+    .incoming{padding:13px}
+    footer{font-size:11px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="topbar">
+    <div class="brand"><div class="logo">🤰</div><div>맘스세이프<small>Mom's Safe · 공공 모자보건 안전망 미들웨어</small></div></div>
+    <div class="roles">
+      <button class="on r-health" data-r="health" onclick="setRole('health')">🏥 보건소</button>
+      <button class="r-119" data-r="ems" onclick="setRole('ems')">🚑 119 현장</button>
+      <button class="r-hosp" data-r="hosp" onclick="setRole('hosp')">🛏️ 병원</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- ============ 보건소 ============ -->
+  <section class="view on" id="v-health">
+    <div class="vhead">
+      <h1>보건소 관리 대시보드</h1><span class="tag">Rule-Based 실시간 트리아지</span>
+      <p style="margin-left:auto">국가 가이드라인 기반 위험도 스코어 · 선제적 모니터링</p>
+    </div>
+    <div class="kpis" id="health-kpi"></div>
+    <div class="grid two" style="grid-template-columns:1fr 360px">
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--health)"></span>등록 산모 위험도 현황</h3>
+        <table><thead><tr><th>산모</th><th>임신주수</th><th>주요 기저질환</th><th>실제위험도</th><th>예비위험도</th></tr></thead>
+        <tbody id="mom-rows"></tbody></table>
+      </div>
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--mom)"></span>신규 산모 등록 (진단서)</h3>
+        <label class="f">성명(가명)</label><input id="nm-name" placeholder="예: 산모 G">
+        <label class="f" style="margin-top:12px">임신 주수</label><input id="nm-week" type="number" value="30" min="4" max="42">
+        <label class="f" style="margin-top:12px">연령</label><input id="nm-age" type="number" value="33" min="18" max="50">
+        <label class="f" style="margin-top:12px">기저질환 / 진단 (클릭)</label>
+        <div id="nm-cond" style="margin-top:2px"></div>
+        <button class="btn pri" style="width:100%;margin-top:14px" onclick="addMom()">등록 + 위험도 산출 + 병원 우선순위 사전계산</button>
+        <p class="small muted" style="margin-top:10px">등록 즉시 19대 질환 룰엔진이 실제위험도를 산출하고 e-Gen 연동 병원 우선순위를 사전 계산합니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 119 ============ -->
+  <section class="view" id="v-ems">
+    <div class="vhead">
+      <h1>119 구급대원 현장 인터페이스</h1><span class="tag">초간결 출동 UX</span>
+      <p style="margin-left:auto">현장 조회 → 고위험 프로필 + 치료적합 병원 우선순위 즉시 로딩</p>
+    </div>
+    <div class="grid two" style="grid-template-columns:380px 1fr">
+      <div class="panel" style="align-self:start">
+        <h3><span class="dot" style="background:var(--emer)"></span>산모 조회</h3>
+        <select id="ems-pick" onchange="emsLoad(this.value)"><option value="">— 등록 산모 선택 (식별번호 조회) —</option></select>
+        <div id="ems-profile" style="margin-top:16px"></div>
+      </div>
+      <div class="panel" id="ems-right">
+        <div class="empty">좌측에서 산모를 조회하면 위험 프로필과 치료적합 병원 우선순위가 표시됩니다.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 병원 ============ -->
+  <section class="view" id="v-hosp">
+    <div class="vhead">
+      <h1>병원 응급실 수용 대시보드</h1><span class="tag">원클릭 수용/거절</span>
+      <p style="margin-left:auto">이송 중 환자의 누적 데이터 + 현재 급성 증상 한눈에</p>
+    </div>
+    <div class="grid two" style="grid-template-columns:1fr 380px">
+      <div class="panel">
+        <h3><span class="dot" style="background:var(--sys)"></span>수용 요청 (Inbound) <span id="hosp-self" class="pill" style="margin-left:auto"></span></h3>
+        <div id="hosp-inbox"><div class="empty">현재 수용 요청이 없습니다. 119 탭에서 응급 이송을 발생시켜 보세요.</div></div>
+      </div>
+      <div class="panel" style="align-self:start">
+        <h3><span class="dot" style="background:var(--blue)"></span>권역 병상/자원 현황</h3>
+        <div id="hosp-res"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    맘스세이프 · 보건소 → 119 → 병원 데이터 릴레이 프로토타입 (데모 데이터) · 100% Explainable Rule-Based 엔진<br>
+    예방 → 조기감지 → 등록 → 모니터링 → 응급대응 전 주기 안전망 · 본 화면의 인물·수치는 시연용 가상 데이터입니다
+  </footer>
+</div>
+
+<!-- 산모 상세 drawer (보건소) -->
+<div class="scrim" id="scrim" onclick="closeDrawer()"></div>
+<div class="drawer" id="drawer"><button class="x" onclick="closeDrawer()">✕</button><div id="drawer-body"></div></div>
+
+<script>
+/* ===================== 19대 고위험 질환 룰 ===================== */
+const RULES = [
+  {k:'전치태반',           w:35, t:'급성 대량출혈 위험'},
+  {k:'태반조기박리',       w:38, t:'모체·태아 즉시 위험'},
+  {k:'중증 자간전증',      w:34, t:'경련·장기손상 위험'},
+  {k:'임신성 고혈압',      w:18, t:'자간전증 진행 위험'},
+  {k:'HELLP 증후군',       w:36, t:'간·혈액 응급'},
+  {k:'조기진통',           w:22, t:'조산 위험'},
+  {k:'양막 조기파열',      w:20, t:'감염·조산 위험'},
+  {k:'다태임신',           w:16, t:'조산·출혈 위험 증가'},
+  {k:'임신성 당뇨',        w:12, t:'거대아·분만합병증'},
+  {k:'전치혈관',           w:30, t:'태아 출혈 위험'},
+  {k:'자궁근종 합병',      w:10, t:'분만 진행 장애'},
+  {k:'심장질환 동반',      w:28, t:'분만 중 심부전 위험'},
+  {k:'신장질환 동반',      w:22, t:'전자간증·신부전'},
+  {k:'갑상선 기능이상',    w:8,  t:'대사 불안정'},
+  {k:'정맥혈전색전증 과거',w:18, t:'폐색전 위험'},
+  {k:'산후출혈 과거력',    w:14, t:'재발 출혈 위험'},
+  {k:'제왕절개 과거력',    w:8,  t:'자궁파열·유착'},
+  {k:'양수과소증',         w:14, t:'태아 곤란'},
+  {k:'태아 성장지연',      w:16, t:'태아 곤란·조기분만'},
+];
+/* 급성 증상 (119 add-on / 증상일기 LLM 분류 키워드) */
+const ACUTE = [
+  {k:'질출혈',  w:30}, {k:'심한 복통', w:22}, {k:'두통·시야흐림', w:24},
+  {k:'태동 감소', w:20}, {k:'의식저하', w:38}, {k:'규칙적 진통', w:18},
+  {k:'호흡곤란', w:26}, {k:'고열', w:14}, {k:'경련', w:40},
+];
+
+/* 위험도 등급 */
+function grade(score){
+  if(score>=70) return {key:'emer',label:'응급',cls:'b-emer',color:'#ff6b6b'};
+  if(score>=45) return {key:'high',label:'고위험',cls:'b-high',color:'#ff9b6b'};
+  if(score>=22) return {key:'mid', label:'중위험',cls:'b-mid', color:'#ffcf5c'};
+  return {key:'low',label:'저위험',cls:'b-low',color:'#54d98c'};
+}
+/* 실제위험도 = 기저질환 룰 + 주수/연령 보정 + 누적 급성증상 */
+function calcRisk(m){
+  let s=0; const breakdown=[];
+  m.conditions.forEach(c=>{const r=RULES.find(x=>x.k===c); if(r){s+=r.w; breakdown.push({k:c,w:r.w,t:r.t})}});
+  if(m.week<28){s+=14; breakdown.push({k:'임신 28주 미만',w:14,t:'미숙아 위험'})}
+  else if(m.week>=37){s+=6; breakdown.push({k:'만삭 임박',w:6,t:'분만 임박'})}
+  if(m.age>=35){s+=10; breakdown.push({k:'고령 임신(35세+)',w:10,t:'합병증 위험'})}
+  (m.acute||[]).forEach(a=>{const r=ACUTE.find(x=>x.k===a); if(r){s+=r.w; breakdown.push({k:'[급성] '+a,w:r.w,t:'현장/증상 가산'})}});
+  return {score:Math.min(s,100), breakdown};
+}
+/* 예비위험도 = 증상일기 LLM 분류 결과(키워드 매칭 시뮬레이션) */
+function calcPrelim(text){
+  if(!text) return {score:0,hits:[]};
+  let s=0; const hits=[];
+  const map={'출혈':'질출혈','피가':'질출혈','피를':'질출혈','하혈':'질출혈','복통':'심한 복통','배가':'심한 복통','배아':'심한 복통','배도':'심한 복통','아랫배':'심한 복통','두통':'두통·시야흐림','머리':'두통·시야흐림','시야':'두통·시야흐림','눈앞':'두통·시야흐림','흐릿':'두통·시야흐림','흐려':'두통·시야흐림','어지':'두통·시야흐림','태동':'태동 감소','안 움직':'태동 감소','안움직':'태동 감소','진통':'규칙적 진통','뭉침':'규칙적 진통','뭉쳐':'규칙적 진통','배뭉':'규칙적 진통','호흡':'호흡곤란','숨이':'호흡곤란','숨차':'호흡곤란','열이':'고열','고열':'고열','경련':'경련','쥐가':'경련','의식':'의식저하','정신':'의식저하'};
+  for(const key in map){ if(text.includes(key)){const a=ACUTE.find(x=>x.k===map[key]); if(a&&!hits.includes(a.k)){s+=a.w;hits.push(a.k)}} }
+  return {score:Math.min(s,100),hits};
+}
+
+/* ===================== 병원 데이터 ===================== */
+let HOSPITALS = [
+  {id:'h1',name:'중앙대학교병원',type:'상급종합',nicu:6,ob:true,obgy:8,beds:3,dist:4.2,region:'중앙권역',accept:true},
+  {id:'h2',name:'권역 모자센터',  type:'권역응급',nicu:9,ob:true,obgy:11,beds:2,dist:7.8,region:'중앙권역',accept:true},
+  {id:'h3',name:'성모여성병원',   type:'전문병원',nicu:3,ob:true,obgy:5,beds:5,dist:3.1,region:'중앙권역',accept:true},
+  {id:'h4',name:'시립의료원',     type:'종합병원',nicu:0,ob:true,obgy:2,beds:6,dist:5.5,region:'중앙권역',accept:true},
+  {id:'h5',name:'한빛가정의학과', type:'의원',    nicu:0,ob:false,obgy:0,beds:1,dist:1.8,region:'중앙권역',accept:false},
+  {id:'h6',name:'북부권역응급센터',type:'권역응급',nicu:5,ob:true,obgy:6,beds:4,dist:14.0,region:'북부권역',accept:true},
+];
+/* 치료적합도 = 중증도 대응역량(NICU/산과/병상) − 거리 페널티, 수용불가 제외 */
+function hospitalPriority(m){
+  const g=grade(m.score||calcRisk(m).score);
+  return HOSPITALS.map(h=>{
+    let fit=50;
+    if(h.ob) fit+=15; else fit-=40;
+    fit += h.obgy*2.2;
+    if(g.key==='emer'||g.key==='high'){ fit += h.nicu*3.5; if(h.type.includes('권역')||h.type==='상급종합') fit+=14; }
+    else { fit += h.nicu*1.2; }
+    fit -= h.dist*1.6;
+    fit += Math.min(h.beds,4)*3;
+    if(!h.accept) fit-=200;
+    return {...h, fit:Math.round(fit)};
+  }).filter(h=>h.fit>-100).sort((a,b)=>b.fit-a.fit);
+}
+
+/* ===================== 가상 산모 데이터 ===================== */
+let MOMS = [
+  {id:'m1',name:'산모 A',week:34,age:38,conditions:['전치태반','임신성 고혈압'],acute:[],diary:'',region:'중앙권역'},
+  {id:'m2',name:'산모 B',week:31,age:29,conditions:['임신성 당뇨'],acute:[],diary:'',region:'중앙권역'},
+  {id:'m3',name:'산모 C',week:27,age:41,conditions:['다태임신','조기진통','임신성 고혈압'],acute:[],diary:'',region:'중앙권역'},
+  {id:'m4',name:'산모 D',week:39,age:31,conditions:['제왕절개 과거력'],acute:[],diary:'',region:'중앙권역'},
+  {id:'m5',name:'산모 E',week:33,age:36,conditions:['중증 자간전증','신장질환 동반'],acute:[],diary:'',region:'중앙권역'},
+  {id:'m6',name:'산모 F',week:29,age:27,conditions:['양막 조기파열'],acute:[],diary:'',region:'북부권역'},
+];
+MOMS.forEach(m=>{const r=calcRisk(m); m.score=r.score; m.prelim=0;});
+
+/* ===================== 상태 / 라우팅 ===================== */
+let role='health', currentMom=null, INBOX=[], SELF_HOSP='h2';
+function setRole(r){
+  role=r;
+  document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on',b.dataset.r===r));
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('v-'+r).classList.add('on');
+  if(r==='health') renderHealth();
+  if(r==='ems') renderEms();
+  if(r==='hosp') renderHosp();
+  window.scrollTo(0,0);
+}
+
+/* ===================== 보건소 렌더 ===================== */
+function renderHealth(){
+  const kpi=document.getElementById('health-kpi');
+  const total=MOMS.length;
+  const emer=MOMS.filter(m=>grade(m.score).key==='emer').length;
+  const high=MOMS.filter(m=>grade(m.score).key==='high').length;
+  const monitor=MOMS.filter(m=>m.prelim>0).length;
+  kpi.innerHTML=`
+    <div class="kpi"><div class="n">${total}</div><div class="l">관리 대상 산모</div><div class="s">중앙·북부 권역</div></div>
+    <div class="kpi"><div class="n" style="color:var(--red)">${emer}</div><div class="l">응급 등급</div><div class="s">즉시 병원 방문 권고</div></div>
+    <div class="kpi"><div class="n" style="color:#ff9b6b">${high}</div><div class="l">고위험 등급</div><div class="s">집중 모니터링</div></div>
+    <div class="kpi"><div class="n" style="color:var(--amber)">${monitor}</div><div class="l">예비위험 알림</div><div class="s">증상일기 상향 감지</div></div>`;
+
+  const tb=document.getElementById('mom-rows');
+  tb.innerHTML=MOMS.map(m=>{
+    const g=grade(m.score);
+    const pg=m.prelim>0?grade(m.prelim):null;
+    return `<tr onclick="openMom('${m.id}')">
+      <td data-label="산모"><div class="who"><div class="avatar">${m.name.slice(-1)}</div><div><b>${m.name}</b><br><span>${m.age}세 · ${m.region}</span></div></div></td>
+      <td data-label="임신주수" class="mono">${m.week}주</td>
+      <td data-label="기저질환"><span class="small muted">${m.conditions.length?m.conditions.slice(0,2).join(', ')+(m.conditions.length>2?` +${m.conditions.length-2}`:''):'—'}</span></td>
+      <td data-label="실제위험도"><span class="badge ${g.cls}">${m.score} · ${g.label}</span></td>
+      <td data-label="예비위험도">${pg?`<span class="badge ${pg.cls}">⚠ ${m.prelim}</span>`:`<span class="muted small">정상</span>`}</td>
+    </tr>`;
+  }).join('');
+  const cc=document.getElementById('nm-cond');
+  if(cc && !cc.dataset.init){
+    cc.innerHTML=RULES.map(r=>`<span class="chip" data-c="${r.k}" onclick="this.classList.toggle('on')">${r.k}</span>`).join('');
+    cc.dataset.init='1';
+  }
+}
+
+/* 산모 상세 drawer */
+function openMom(id){
+  const m=MOMS.find(x=>x.id===id); currentMom=m;
+  const r=calcRisk(m); m.score=r.score; const g=grade(m.score);
+  const body=document.getElementById('drawer-body');
+  const prelim=m.prelim>0?grade(m.prelim):null;
+  body.innerHTML=`
+    <div class="who" style="margin-bottom:18px"><div class="avatar" style="width:46px;height:46px;font-size:17px">${m.name.slice(-1)}</div>
+      <div><b style="font-size:18px">${m.name}</b><br><span class="muted small">${m.age}세 · 임신 ${m.week}주 · ${m.region}</span></div></div>
+
+    <div class="flex between" style="margin-bottom:8px"><span class="muted small">실제위험도 (Rule-Based)</span><span class="badge ${g.cls}">${m.score} / 100 · ${g.label}</span></div>
+    <div class="meter" style="margin-bottom:18px"><i style="width:${m.score}%;background:${g.color}"></i></div>
+
+    <div class="panel" style="padding:14px;margin-bottom:16px">
+      <h3 style="margin-bottom:10px">🧮 위험도 산출 근거 (Explainable)</h3>
+      <div class="rulebox">${r.breakdown.length?r.breakdown.map(b=>`<div class="row"><span><b>${b.k}</b> · ${b.t}</span><span class="plus">+${b.w}</span></div>`).join(''):'<div class="muted">가산 요인 없음 (기본 저위험)</div>'}</div>
+    </div>
+
+    <div class="panel" style="padding:14px;margin-bottom:16px">
+      <h3 style="margin-bottom:10px">📝 증상 일기 입력 → 예비위험도 (LLM 분류)</h3>
+      <textarea id="diary" rows="3" placeholder="자연어로 자유롭게: 예) 아침부터 머리가 아프고 눈앞이 흐릿해요. 배도 자주 뭉쳐요.">${m.diary||''}</textarea>
+      <button class="btn pri sm" style="margin-top:10px" onclick="runDiary('${m.id}')">증상 분류 실행</button>
+      <div id="diary-out" style="margin-top:12px">${prelim?prelimHTML(m):''}</div>
+    </div>
+
+    <button class="btn pri" style="width:100%" onclick="setRole('ems');setTimeout(()=>emsLoad('${m.id}'),50);closeDrawer()">🚑 119 현장 화면으로 보내기 (병원 우선순위 보기)</button>
+  `;
+  document.getElementById('scrim').classList.add('on');
+  document.getElementById('drawer').classList.add('on');
+}
+function prelimHTML(m){
+  const pg=grade(m.prelim);
+  return `<div class="rulebox" style="border-color:${pg.color}66">
+    <div class="flex between" style="padding-bottom:8px"><b style="color:${pg.color}">예비위험도 ${m.prelim} · ${pg.label}</b><span class="pill">관제 알림 발송</span></div>
+    <div class="muted small">분류된 증상: ${m.prelimHits&&m.prelimHits.length?m.prelimHits.join(', '):'특이사항 없음'}</div>
+    ${m.prelim>=22?'<div style="margin-top:8px;color:var(--amber)" class="small">→ 산모에게 <b>병원 방문 권고 알림</b> 자동 발송 · 보건소 관제 추적 시작</div>':''}
+  </div>`;
+}
+function runDiary(id){
+  const m=MOMS.find(x=>x.id===id); const t=document.getElementById('diary').value;
+  m.diary=t; const res=calcPrelim(t); m.prelim=res.score; m.prelimHits=res.hits;
+  document.getElementById('diary-out').innerHTML = m.prelim>0?prelimHTML(m):'<div class="muted small">위험 신호가 감지되지 않았습니다.</div>';
+  renderHealth();
+}
+function closeDrawer(){document.getElementById('scrim').classList.remove('on');document.getElementById('drawer').classList.remove('on')}
+
+function addMom(){
+  const name=document.getElementById('nm-name').value.trim()||('산모 '+String.fromCharCode(65+MOMS.length));
+  const week=+document.getElementById('nm-week').value||30;
+  const age=+document.getElementById('nm-age').value||33;
+  const conditions=[...document.querySelectorAll('#nm-cond .chip.on')].map(c=>c.dataset.c);
+  const m={id:'m'+Date.now(),name,week,age,conditions,acute:[],diary:'',prelim:0,region:'중앙권역'};
+  const r=calcRisk(m); m.score=r.score;
+  MOMS.unshift(m);
+  document.getElementById('nm-name').value='';
+  document.querySelectorAll('#nm-cond .chip.on').forEach(c=>c.classList.remove('on'));
+  renderHealth(); openMom(m.id);
+}
+
+/* ===================== 119 렌더 ===================== */
+function renderEms(){
+  const sel=document.getElementById('ems-pick');
+  sel.innerHTML='<option value="">— 등록 산모 선택 (식별번호 조회) —</option>'+
+    MOMS.map(m=>`<option value="${m.id}">${m.name} · ${m.age}세 · ${m.week}주</option>`).join('');
+}
+function emsLoad(id){
+  if(!id){document.getElementById('ems-profile').innerHTML='';document.getElementById('ems-right').innerHTML='<div class="empty">좌측에서 산모를 조회하면 위험 프로필과 병원 우선순위가 표시됩니다.</div>';return}
+  document.getElementById('ems-pick').value=id;
+  const m=MOMS.find(x=>x.id===id); const r=calcRisk(m); m.score=r.score; const g=grade(m.score);
+  document.getElementById('ems-profile').innerHTML=`
+    <div class="who" style="margin-bottom:14px"><div class="avatar" style="background:rgba(243,217,138,.12);color:var(--emer)">${m.name.slice(-1)}</div>
+      <div><b style="font-size:15px">${m.name}</b><br><span class="muted small">${m.age}세 · 임신 ${m.week}주</span></div></div>
+    <div class="flex between"><span class="muted small">현재 위험도</span><span class="badge ${g.cls}">${m.score} · ${g.label}</span></div>
+    <div class="meter" style="margin:8px 0 14px"><i style="width:${m.score}%;background:${g.color}"></i></div>
+    <div class="muted small" style="margin-bottom:6px">기저질환</div>
+    <div>${m.conditions.length?m.conditions.map(c=>`<span class="pill" style="margin:0 4px 6px 0;display:inline-block">${c}</span>`).join(''):'<span class="muted small">없음</span>'}</div>
+    <div class="muted small" style="margin:14px 0 8px">⚕️ 현장 급성 증상 Add-on (위험도 즉시 반영)</div>
+    <div id="ems-acute">${ACUTE.map(a=>`<span class="chip ${m.acute.includes(a.k)?'on':''}" onclick="toggleAcute('${m.id}','${a.k}')">${a.k}</span>`).join('')}</div>
+  `;
+  emsRight(m);
+}
+function toggleAcute(id,k){
+  const m=MOMS.find(x=>x.id===id);
+  if(m.acute.includes(k)) m.acute=m.acute.filter(x=>x!==k); else m.acute.push(k);
+  const r=calcRisk(m); m.score=r.score;
+  emsLoad(id);
+}
+function emsRight(m){
+  const g=grade(m.score);
+  const list=hospitalPriority(m);
+  document.getElementById('ems-right').innerHTML=`
+    <h3><span class="dot" style="background:var(--sys)"></span>치료적합 병원 우선순위 <span class="pill" style="margin-left:auto">e-Gen 연동 · 실시간 재계산</span></h3>
+    ${list.map((h,i)=>`
+      <div class="hosp ${i===0?'rank1':''}">
+        <div class="rk">${i+1}</div>
+        <div class="info"><b>${h.name}</b> <span class="pill">${h.type}</span>
+          <div class="meta">NICU ${h.nicu}병상 · 산과전문의 ${h.obgy}명 · 가용병상 ${h.beds} · ${h.dist}km · ${h.region}</div></div>
+        <div class="fit"><div class="sc" style="color:${i===0?'var(--sys)':'var(--mut)'}">${h.fit}</div><div class="lbl">적합도</div></div>
+      </div>`).join('')}
+    <button class="btn pri" style="width:100%;margin-top:8px" onclick="dispatch('${m.id}')">
+      🚨 1순위 병원에 수용 요청 전송 (질환·위험도·임신주수 사전 전달)</button>
+    <p class="small muted" style="margin-top:10px">현재 위험도 <b style="color:${g.color}">${g.label}</b> 기준으로 중증 대응역량(NICU·산과)이 가중 계산되었습니다.</p>
+  `;
+}
+
+/* ===================== 응급 릴레이 (Cascade) ===================== */
+function dispatch(id){
+  const m=MOMS.find(x=>x.id===id);
+  const list=hospitalPriority(m);
+  const caseId='C'+Math.floor(Math.random()*9000+1000);
+  const route=list.slice(0,4).map(h=>({...h, reject: h.beds<=2 && Math.random()<0.55}));
+  if(route.every(r=>r.reject)) route[route.length-1].reject=false;
+  const c={caseId,mom:m,grade:grade(m.score),route,idx:0,log:[],done:false,acceptedBy:null,t0:Date.now()};
+  INBOX.unshift(c);
+  pushLog(c,'119 현장 출동 · 응급 발생',`${m.name} · ${grade(m.score).label}(${m.score}) · ${m.week}주`,'done');
+  sendNext(c);
+  setRole('hosp');
+  alert(`🚑 [${caseId}] ${m.name} 수용 요청을 1순위 병원에 전송했습니다.\n병원 응급실 대시보드에서 수용/거절을 진행하세요.`);
+}
+function sendNext(c){
+  if(c.idx>=c.route.length){ pushLog(c,'전 병원 수용 불가','권역 응급망 비상 — 광역 이송 검토','fail'); c.done=true; renderHosp(); return; }
+  const h=c.route[c.idx];
+  pushLog(c,`${c.idx+1}순위 「${h.name}」 수용 요청 전송`,'질환·위험도·임신주수·현장 증상 사전 전송','act');
+  renderHosp();
+}
+function pushLog(c,t,d,st){ c.log.unshift({t,d,st,ts:tnow()}); }
+function tnow(){const d=new Date();return d.toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})}
+
+function decide(caseId,accept){
+  const c=INBOX.find(x=>x.caseId===caseId); if(!c||c.done) return;
+  const h=c.route[c.idx];
+  if(accept){
+    pushLog(c,`✅ 「${h.name}」 수용 확정`,'이송 확정 · 처치 준비 · 골든타임 내 이송','done');
+    c.done=true; c.acceptedBy=h;
+  } else {
+    pushLog(c,`❌ 「${h.name}」 거절 (병상부족)`,'전화 재시도 없이 다음 순위로 자동 릴레이','fail');
+    c.idx++; sendNext(c); return;
+  }
+  renderHosp();
+}
+
+/* ===================== 병원 렌더 ===================== */
+function renderHosp(){
+  const self=HOSPITALS.find(h=>h.id===SELF_HOSP);
+  document.getElementById('hosp-self').textContent='我 병원: '+self.name;
+  const box=document.getElementById('hosp-inbox');
+  if(INBOX.length===0){box.innerHTML='<div class="empty">현재 수용 요청이 없습니다. 119 탭에서 응급 이송을 발생시켜 보세요.</div>';}
+  else{
+    box.innerHTML=INBOX.map(c=>{
+      const cur=c.route[Math.min(c.idx,c.route.length-1)];
+      const m=c.mom; const g=c.grade;
+      const waiting = !c.done && c.idx<c.route.length;
+      const targetName = waiting?cur.name:'—';
+      return `<div class="incoming ${g.key==='emer'?'urgent':''}">
+        <div class="flex between" style="margin-bottom:10px;gap:8px">
+          <div class="flex" style="flex-wrap:wrap"><span class="badge ${g.cls} ${g.key==='emer'?'blink':''}">${g.label} ${m.score}</span>
+            <b style="font-size:15px">${m.name}</b><span class="muted small">${m.age}세 · ${m.week}주</span></div>
+          <span class="pill mono">${c.caseId}</span>
+        </div>
+        <div class="muted small" style="margin-bottom:6px">기저: ${m.conditions.join(', ')||'없음'} ${m.acute.length?' · <span style="color:var(--red)">급성: '+m.acute.join(', ')+'</span>':''}</div>
+        ${ c.done
+            ? (c.acceptedBy?`<div class="badge b-low" style="margin:6px 0">🎯 ${c.acceptedBy.name} 이송 확정 · 골든타임 내 완료</div>`
+                          :`<div class="badge b-emer" style="margin:6px 0">전 병원 수용 불가 · 광역 이송</div>`)
+            : `<div class="flex between" style="background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:8px 0;gap:8px">
+                 <span class="small">현재 <b style="color:var(--sys)">${c.idx+1}순위 「${targetName}」</b> 수용 대기</span>
+                 <span class="pill">우선순위 ${c.idx+1}/${c.route.length}</span></div>
+               <div class="flex" style="gap:8px">
+                 <button class="btn ok sm" style="flex:1" onclick="decide('${c.caseId}',true)">✓ 수용 (이송 확정)</button>
+                 <button class="btn danger sm" style="flex:1" onclick="decide('${c.caseId}',false)">✕ 거절 → 다음 순위 자동 릴레이</button>
+               </div>`
+        }
+        <div class="relay" style="margin-top:14px">
+          ${c.log.map(l=>`<div class="step ${l.st}"><div class="flex between" style="gap:8px"><span class="t">${l.t}</span><span class="ts">${l.ts}</span></div><div class="d">${l.d}</div></div>`).join('')}
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('hosp-res').innerHTML=HOSPITALS.map(h=>`
+    <div class="flex between" style="padding:9px 0;border-bottom:1px solid var(--line);gap:8px">
+      <div><b class="small">${h.name}</b><br><span class="muted" style="font-size:11px">${h.type} · ${h.region}</span></div>
+      <div style="text-align:right"><span class="pill ${h.accept?'':'b-emer'}">${h.accept?'수용가능':'수용불가'}</span><br>
+      <span class="muted" style="font-size:11px">NICU ${h.nicu} · 병상 ${h.beds}</span></div>
+    </div>`).join('');
+}
+
+/* init */
+renderHealth();
+</script>
+</body>
+</html>
