@@ -343,11 +343,14 @@ function reverseGeocode(lat, lng) {
       .catch(() => null)
   );
 }
+// 주소 형식이 바뀔 때마다 올려서, 구버전 클라이언트가 캐싱한(형식이 다른) 주소를 다음 조회
+// 시 무조건 재생성하도록 한다. 단순 존재 여부만 보면 옛 캐시값을 영구히 신뢰하게 되어버린다.
+const ADDRESS_FORMAT_VERSION = 2;
 export async function ensureHospitalAddress(hospital) {
-  if (hospital.address) return hospital.address;
+  if (hospital.address && hospital.address_v === ADDRESS_FORMAT_VERSION) return hospital.address;
   await authReady;
   const address = await reverseGeocode(hospital.latitude, hospital.longitude);
-  if (address) await updateDoc(doc(db, 'hospitals', hospital.hospital_id), { address });
+  if (address) await updateDoc(doc(db, 'hospitals', hospital.hospital_id), { address, address_v: ADDRESS_FORMAT_VERSION });
   return address;
 }
 

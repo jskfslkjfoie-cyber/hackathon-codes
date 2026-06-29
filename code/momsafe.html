@@ -521,7 +521,7 @@ function renderInfra(){
   infraLayer.clearLayers();
   const pts=[];
   const hospMarkers={};
-  function addrLine(h){ return h.address ? `<a href="${naverMapUrl(h.address)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
+  function addrLine(h){ return (h.address && h.address_v===2) ? `<a href="${naverMapUrl(h.address)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
   HOSPITALS.forEach(h=>{
     pts.push([h.latitude,h.longitude]);
     const marker=L.marker([h.latitude,h.longitude]).addTo(infraLayer)
@@ -548,10 +548,10 @@ function renderInfra(){
       <div id="infra-addr-${h.hospital_id}" style="margin-top:3px;font-size:11px">${addrLine(h)}</div>
     </div>`).join('');
 
-  HOSPITALS.filter(h=>!h.address).forEach(async h=>{
+  HOSPITALS.filter(h=>!h.address || h.address_v!==2).forEach(async h=>{
     const address=await ensureHospitalAddress(h);
     if(!address) return;
-    h.address=address;
+    h.address=address; h.address_v=2;
     const row=document.getElementById('infra-addr-'+h.hospital_id);
     if(row) row.innerHTML=addrLine(h);
     hospMarkers[h.hospital_id]?.setPopupContent(`<b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0}병상 · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}<br>${addrLine(h)}`);
