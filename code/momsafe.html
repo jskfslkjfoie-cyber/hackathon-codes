@@ -340,7 +340,9 @@ import {
   respondToRequest, watchResponses, seedHospitalsIfEmpty, seedPatientsIfEmpty, ensureHospitalAddress,
 } from '/code/data.js';
 
-function naverMapUrl(query){ return `https://map.naver.com/p/search/${encodeURIComponent(query)}`; }
+// 도로명만 있고 번지가 없는 좌표는 텍스트 주소로 검색하면 네이버가 그 길 전체를 보여준다.
+// "위도, 경도" 형식으로 검색하면 네이버 자체 역지오코딩이 항상 정확한 지번 한 곳으로 매칭해준다.
+function naverMapUrl(lat, lng){ return `https://map.naver.com/p/search/${encodeURIComponent(lat + ', ' + lng)}`; }
 
 seedHospitalsIfEmpty();
 seedPatientsIfEmpty();
@@ -521,7 +523,7 @@ function renderInfra(){
   infraLayer.clearLayers();
   const pts=[];
   const hospMarkers={};
-  function addrLine(h){ return (h.address && h.address_v===2) ? `<a href="${naverMapUrl(h.address)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
+  function addrLine(h){ return (h.address && h.address_v===2) ? `<a href="${naverMapUrl(h.latitude,h.longitude)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
   HOSPITALS.forEach(h=>{
     pts.push([h.latitude,h.longitude]);
     const marker=L.marker([h.latitude,h.longitude]).addTo(infraLayer)
