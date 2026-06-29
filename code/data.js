@@ -329,8 +329,18 @@ let geocodeQueue = Promise.resolve();
 function reverseGeocode(lat, lng) {
   geocodeQueue = geocodeQueue.then(() => new Promise(resolve => setTimeout(resolve, 1100)));
   return geocodeQueue.then(() =>
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&accept-language=ko`)
-      .then(r => r.json()).then(d => d.display_name || null).catch(() => null)
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&accept-language=ko&addressdetails=1`)
+      .then(r => r.json())
+      .then(d => {
+        // display_name 의 선두에 붙는 POI/건물명(예: "나루아트센터 소공연장")이나 동 이름이
+        // 섞이면 네이버 지도 도로명주소 검색이 매칭하지 못한다. 시/도 + 구 + 도로명 + 건물번호
+        // (표준 도로명주소 형식, 동 이름 제외)로만 재조립한다.
+        const a = d.address || {};
+        const district = a.borough || a.city_district || a.county || '';
+        const parts = [a.city || a.state, district, a.road, a.house_number].filter(Boolean);
+        return parts.length ? parts.join(' ') : (d.display_name || null);
+      })
+      .catch(() => null)
   );
 }
 export async function ensureHospitalAddress(hospital) {
