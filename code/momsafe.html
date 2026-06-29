@@ -22,7 +22,7 @@
 
   header{position:sticky;top:0;z-index:50;background:rgba(10,10,12,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .topbar{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 22px}
-  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.3px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.3px;cursor:pointer}
   .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--mom),var(--sys));display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
   .brand small{display:block;font-size:11px;font-weight:500;color:var(--mut);letter-spacing:0}
   .roles{margin-left:auto;display:flex;gap:6px;background:var(--panel);border:1px solid var(--line);padding:5px;border-radius:12px}
@@ -195,7 +195,7 @@
 <body>
 <header>
   <div class="topbar">
-    <div class="brand"><div class="logo">🤰</div><div>고맘워요<small>Mom's Safe · 공공 모자보건 안전망 미들웨어</small></div></div>
+    <div class="brand" id="brand-home"><div class="logo">🤰</div><div>고맘워요<small>Mom's Safe · 공공 모자보건 안전망 미들웨어</small></div></div>
     <div class="roles">
       <button class="on r-health" data-r="health">🏥 보건소</button>
       <button class="r-119" data-r="ems">🚑 119 현장</button>
@@ -385,6 +385,14 @@ document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('
   document.getElementById('dash-infra').style.display = dashTab==='infra'?'':'none';
   if(dashTab==='list') renderDash(); if(dashTab==='alerts') renderAlerts(); if(dashTab==='infra') renderInfra();
 }));
+document.getElementById('brand-home').addEventListener('click', ()=>{
+  dashTab='list';
+  document.querySelectorAll('.subnav [data-dash]').forEach(x=>x.classList.toggle('on', x.dataset.dash==='list'));
+  document.getElementById('dash-list').style.display='';
+  document.getElementById('dash-alerts').style.display='none';
+  document.getElementById('dash-infra').style.display='none';
+  setRole('health');
+});
 
 /* ===================== DASH-001 산모 현황 목록 ===================== */
 function renderDash(){
