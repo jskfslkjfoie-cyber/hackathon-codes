@@ -126,6 +126,7 @@
   .blink{animation:bl 1s infinite} @keyframes bl{50%{opacity:.45}}
 
   .muted{color:var(--mut)} .small{font-size:12px} .mono{font-variant-numeric:tabular-nums}
+  .addr-link{color:var(--blue);text-decoration:none} .addr-link:hover{text-decoration:underline}
   .flex{display:flex;align-items:center;gap:10px} .between{justify-content:space-between}
   .empty{text-align:center;color:var(--dim);padding:36px 10px;font-size:13.5px}
   footer{color:var(--dim);font-size:12px;text-align:center;margin-top:36px;line-height:1.8}
@@ -336,8 +337,10 @@ import {
   addSymptomDiary, listDiaries, confirmDiaryVisit, watchUnconfirmedDiaries,
   watchHospitals, updateHospitalStatus, hospitalPriority, saveRecommendations,
   createEmergencyRequest, addEmsAssessment, watchEmergencyRequests, watchEmergencyRequest,
-  respondToRequest, watchResponses, seedHospitalsIfEmpty, seedPatientsIfEmpty,
+  respondToRequest, watchResponses, seedHospitalsIfEmpty, seedPatientsIfEmpty, ensureHospitalAddress,
 } from '/code/data.js';
+
+function naverMapUrl(query){ return `https://map.naver.com/p/search/${encodeURIComponent(query)}`; }
 
 seedHospitalsIfEmpty();
 seedPatientsIfEmpty();
@@ -517,11 +520,14 @@ function renderInfra(){
   }
   infraLayer.clearLayers();
   const pts=[];
+  const hospMarkers={};
+  function addrLine(h){ return h.address ? `<a href="${naverMapUrl(h.address)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
   HOSPITALS.forEach(h=>{
     pts.push([h.latitude,h.longitude]);
-    L.marker([h.latitude,h.longitude]).addTo(infraLayer)
-      .bindPopup(`<b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0}병상 · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}`)
+    const marker=L.marker([h.latitude,h.longitude]).addTo(infraLayer)
+      .bindPopup(`<b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0}병상 · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}<br>${addrLine(h)}`)
       .bindTooltip(esc(h.hospital_name), { permanent:true, direction:'top', offset:[0,-30], className:'small' });
+    hospMarkers[h.hospital_id]=marker;
   });
   PATIENTS.filter(p=>p.location).forEach(p=>{
     pts.push([p.location.latitude,p.location.longitude]);
@@ -532,11 +538,24 @@ function renderInfra(){
   });
   if(pts.length) infraMap.fitBounds(pts, { padding:[30,30], maxZoom:13 });
   setTimeout(()=>infraMap.invalidateSize(), 50);
+
   document.getElementById('infra-hosp-list').innerHTML=HOSPITALS.map(h=>`
-    <div class="flex between" style="padding:9px 0;border-bottom:1px solid var(--line);gap:8px">
-      <div><b class="small">${esc(h.hospital_name)}</b><br><span class="muted" style="font-size:11px">${h.high_risk_delivery?'고위험분만 지정':'일반'}</span></div>
-      <div style="text-align:right"><span class="pill">NICU ${h.nicu_available_beds??0}</span></div>
+    <div style="padding:9px 0;border-bottom:1px solid var(--line)">
+      <div class="flex between" style="gap:8px">
+        <b class="small">${esc(h.hospital_name)}</b>
+        <span class="pill">NICU ${h.nicu_available_beds??0}</span>
+      </div>
+      <div id="infra-addr-${h.hospital_id}" style="margin-top:3px;font-size:11px">${addrLine(h)}</div>
     </div>`).join('');
+
+  HOSPITALS.filter(h=>!h.address).forEach(async h=>{
+    const address=await ensureHospitalAddress(h);
+    if(!address) return;
+    h.address=address;
+    const row=document.getElementById('infra-addr-'+h.hospital_id);
+    if(row) row.innerHTML=addrLine(h);
+    hospMarkers[h.hospital_id]?.setPopupContent(`<b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0}병상 · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}<br>${addrLine(h)}`);
+  });
 }
 
 /* ===================== 119: EMS-001 조회 / EMS-002 현장평가 / EMS-003 릴레이 ===================== */

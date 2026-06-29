@@ -323,6 +323,24 @@ export function watchHospitals(cb) {
     cb(snap.docs.map(d => ({ hospital_id: d.id, ...d.data() })));
   }));
 }
+// 좌표 → 주소 역지오코딩 (Nominatim/OpenStreetMap, API 키 불필요). 결과는 hospital 문서에 캐싱해
+// 최초 1회만 호출되도록 하고, 동시 호출을 직렬화해 정책상 호출 빈도(1req/s)를 지킨다.
+let geocodeQueue = Promise.resolve();
+function reverseGeocode(lat, lng) {
+  geocodeQueue = geocodeQueue.then(() => new Promise(resolve => setTimeout(resolve, 1100)));
+  return geocodeQueue.then(() =>
+    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=jsonv2&accept-language=ko`)
+      .then(r => r.json()).then(d => d.display_name || null).catch(() => null)
+  );
+}
+export async function ensureHospitalAddress(hospital) {
+  if (hospital.address) return hospital.address;
+  await authReady;
+  const address = await reverseGeocode(hospital.latitude, hospital.longitude);
+  if (address) await updateDoc(doc(db, 'hospitals', hospital.hospital_id), { address });
+  return address;
+}
+
 export async function updateHospitalStatus(hospitalId, status) {
   await authReady;
   await updateDoc(doc(db, 'hospitals', hospitalId), {
