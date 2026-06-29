@@ -6,6 +6,8 @@
 <title>고맘워요 (Mom's Safe) — 공공 모자보건 안전망</title>
 <meta name="description" content="고위험 임산부 원스톱 보호 시스템 고맘워요 — 보건소·119·병원 관제 콘솔">
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root{
     --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c22; --line:#2a2a33;
@@ -128,17 +130,11 @@
   .empty{text-align:center;color:var(--dim);padding:36px 10px;font-size:13.5px}
   footer{color:var(--dim);font-size:12px;text-align:center;margin-top:36px;line-height:1.8}
 
-  .geo{position:relative;height:360px;background:
-      linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px) 0 0/40px 40px,
-      linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/40px 40px,
-      var(--panel2);
-    border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .geo .pin{position:absolute;width:14px;height:14px;border-radius:4px;background:var(--blue);border:2px solid #fff3;transform:translate(-50%,-50%);cursor:pointer;z-index:2}
-  .geo .pinlabel{position:absolute;transform:translate(-50%,4px);font-size:10.5px;font-weight:700;color:var(--txt);background:rgba(10,10,12,.75);padding:2px 6px;border-radius:5px;white-space:nowrap;pointer-events:none}
-  .geo .dotm{position:absolute;width:9px;height:9px;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 0 0 3px rgba(0,0,0,.25);z-index:1}
-  .geo .tip{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:11.5px;white-space:nowrap;z-index:5;transform:translate(-50%,-130%);display:none;box-shadow:0 8px 20px rgba(0,0,0,.4)}
-  .geo .pin:hover + .tip, .geo .tip:hover{display:block}
-  .geo .note{position:absolute;left:10px;bottom:8px;font-size:10.5px;color:var(--dim);max-width:80%}
+  .geo{position:relative;height:360px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .geo .leaflet-popup-content-wrapper{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px}
+  .geo .leaflet-popup-tip{background:var(--panel)}
+  .geo .leaflet-control-attribution{background:rgba(10,10,12,.7) !important;color:var(--dim) !important}
+  .geo .leaflet-control-attribution a{color:var(--mut) !important}
   .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--mut)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
   .legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
@@ -371,7 +367,7 @@ function setRole(r){
   document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on', b.dataset.r===r));
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.getElementById('v-'+r).classList.add('on');
-  if(r==='health') renderDash();
+  if(r==='health'){ if(dashTab==='list') renderDash(); else if(dashTab==='alerts') renderAlerts(); else renderInfra(); }
   if(r==='ems') renderEmsBody();
   if(r==='hosp') renderHosp();
   window.scrollTo(0,0);
@@ -508,24 +504,34 @@ function renderAlerts(){
   }));
 }
 
-/* ===================== DASH-004 지역 인프라 현황 ===================== */
+/* ===================== DASH-004 지역 인프라 현황 (Leaflet + OpenStreetMap, API 키 불필요) ===================== */
+let infraMap=null, infraLayer=null;
 function renderInfra(){
-  const map=document.getElementById('geo-map');
-  const lats=HOSPITALS.map(h=>h.latitude), lngs=HOSPITALS.map(h=>h.longitude);
-  const allLat=[...lats, ...PATIENTS.filter(p=>p.location).map(p=>p.location.latitude)];
-  const allLng=[...lngs, ...PATIENTS.filter(p=>p.location).map(p=>p.location.longitude)];
-  const minLat=Math.min(...allLat,37.4), maxLat=Math.max(...allLat,37.6);
-  const minLng=Math.min(...allLng,126.8), maxLng=Math.max(...allLng,127.1);
-  const X=lng=>((lng-minLng)/(maxLng-minLng||1))*88+6;
-  const Y=lat=>(1-(lat-minLat)/(maxLat-minLat||1))*88+6;
-  let html='';
-  html+=HOSPITALS.map(h=>`
-    <div class="pin" style="left:${X(h.longitude)}%;top:${Y(h.latitude)}%"></div>
-    <div class="pinlabel" style="left:${X(h.longitude)}%;top:${Y(h.latitude)}%">${esc(h.hospital_name)}</div>
-    <div class="tip" style="left:${X(h.longitude)}%;top:${Y(h.latitude)}%"><b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0} · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}</div>`).join('');
-  html+=PATIENTS.filter(p=>p.location).map(p=>{ const g=grade(totalScore(p)); return `<div class="dotm" style="left:${X(p.location.longitude)}%;top:${Y(p.location.latitude)}%;background:${g.color}"></div>`; }).join('');
-  html+=`<div class="note">실제 지리좌표 기반 상대 배치(카카오맵 키 연동 전 단계) · 법정 분만취약지 경계 데이터는 미연동 상태입니다</div>`;
-  map.innerHTML=html;
+  if(!infraMap){
+    infraMap=L.map('geo-map', { attributionControl:true }).setView([37.5665,126.9780], 11);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      subdomains:'abcd', maxZoom:19,
+    }).addTo(infraMap);
+    infraLayer=L.layerGroup().addTo(infraMap);
+  }
+  infraLayer.clearLayers();
+  const pts=[];
+  HOSPITALS.forEach(h=>{
+    pts.push([h.latitude,h.longitude]);
+    L.marker([h.latitude,h.longitude]).addTo(infraLayer)
+      .bindPopup(`<b>${esc(h.hospital_name)}</b><br>NICU ${h.nicu_available_beds??0}병상 · ${h.is_obgyn_on_call?'당직의 있음':'당직의 없음'}`)
+      .bindTooltip(esc(h.hospital_name), { permanent:true, direction:'top', offset:[0,-30], className:'small' });
+  });
+  PATIENTS.filter(p=>p.location).forEach(p=>{
+    pts.push([p.location.latitude,p.location.longitude]);
+    const g=grade(totalScore(p));
+    L.circleMarker([p.location.latitude,p.location.longitude], { radius:7, color:'#0009', weight:2, fillColor:g.color, fillOpacity:.9 })
+      .addTo(infraLayer)
+      .bindPopup(`${esc(p.name)} · ${g.label}`);
+  });
+  if(pts.length) infraMap.fitBounds(pts, { padding:[30,30], maxZoom:13 });
+  setTimeout(()=>infraMap.invalidateSize(), 50);
   document.getElementById('infra-hosp-list').innerHTML=HOSPITALS.map(h=>`
     <div class="flex between" style="padding:9px 0;border-bottom:1px solid var(--line);gap:8px">
       <div><b class="small">${esc(h.hospital_name)}</b><br><span class="muted" style="font-size:11px">${h.high_risk_delivery?'고위험분만 지정':'일반'}</span></div>
