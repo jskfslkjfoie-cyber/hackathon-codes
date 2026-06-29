@@ -5,17 +5,43 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>고맘워요 (Mom's Safe) — 산모 앱</title>
 <meta name="description" content="고위험 임산부 원스톱 보호 시스템 고맘워요 — 산모용 모바일 앱">
+<script>document.documentElement.dataset.theme = localStorage.getItem('momsafe-theme') || 'light';</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
-  html,body{background:#09090b}
+  :root, [data-theme="light"]{
+    --bg:#f3f4f6; --panel:#ffffff; --panel2:#edeff2; --line:#dde1e7;
+    --txt:#16171a; --mut:#5a5e68; --dim:#878b94; --mom:#16a085;
+  }
+  [data-theme="dark"]{
+    --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c22; --line:#2a2a33;
+    --txt:#e9e9ee; --mut:#9a9aa6; --dim:#6b6b76; --mom:#9fe0b8;
+  }
+  html,body{background:var(--bg)}
   ::-webkit-scrollbar{width:0;height:0}
-  .chip{display:inline-block;font-size:12px;padding:6px 12px;border-radius:20px;background:#1c1c22;border:1px solid #2a2a33;color:#9a9aa6;cursor:pointer;margin:0 6px 6px 0}
-  .chip.on{background:rgba(159,224,184,.16);border-color:rgba(159,224,184,.5);color:#9fe0b8}
+  .chip{display:inline-block;font-size:12px;padding:6px 12px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);cursor:pointer;margin:0 6px 6px 0}
+  .chip.on{background:rgba(22,160,133,.16);border-color:rgba(22,160,133,.5);color:var(--mom)}
   .badge{display:inline-flex;align-items:center;font-size:12px;font-weight:700;padding:4px 10px;border-radius:20px}
-  input,textarea,select{background:#1c1c22;border:1px solid #2a2a33;color:#e9e9ee;border-radius:10px;padding:10px 12px;font-size:14px;width:100%}
-  input:focus,textarea:focus{outline:none;border-color:#9fe0b8}
-  input::placeholder,textarea::placeholder{color:#55555f}
+  input,textarea,select{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:10px 12px;font-size:14px;width:100%}
+  input:focus,textarea:focus{outline:none;border-color:var(--mom)}
+  input::placeholder,textarea::placeholder{color:var(--dim)}
+
+  /* 라이트 모드: Tailwind 다크 팔레트 유틸리티 클래스를 화면 곳곳에서 직접 사용하고 있어
+     (다크모드 전제로 작성됨), 토글 시 보이는 색만 별도로 덮어쓴다. 강조색 위 고정 텍스트
+     (text-zinc-900 on bg-emerald-300 등)처럼 버튼 자체 배경에 묶인 페어는 그대로 둔다. */
+  [data-theme="light"] body{background:var(--bg)}
+  [data-theme="light"] .bg-\[\#0a0a0c\]{background-color:var(--bg) !important}
+  [data-theme="light"] .bg-zinc-900{background-color:var(--panel) !important}
+  [data-theme="light"] .bg-zinc-800{background-color:var(--panel2) !important}
+  [data-theme="light"] .border-zinc-800,[data-theme="light"] .border-zinc-700{border-color:var(--line) !important}
+  [data-theme="light"] .text-zinc-100{color:var(--txt) !important}
+  [data-theme="light"] .text-zinc-400{color:var(--mut) !important}
+  [data-theme="light"] .text-zinc-500{color:var(--dim) !important}
+  [data-theme="light"] .text-emerald-300{color:#16a085 !important}
+  [data-theme="light"] .text-emerald-400{color:#0f8a72 !important}
+  [data-theme="light"] .border-emerald-300{border-color:#16a085 !important}
+  [data-theme="light"] .text-rose-400{color:#c81e4e !important}
+  [data-theme="light"] .text-amber-400{color:#a8730a !important}
 </style>
 </head>
 <body class="text-zinc-100">
@@ -26,6 +52,7 @@
     <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-300 to-violet-300 flex items-center justify-center text-base">🤰</div>
     <div class="font-extrabold text-[15px]">고맘워요<span class="block text-[10px] font-medium text-zinc-500">Mom's Safe</span></div>
     <div id="hdr-risk" class="ml-auto"></div>
+    <button id="theme-btn" class="w-8 h-8 rounded-lg flex items-center justify-center text-base flex-none" style="background:var(--panel2);border:1px solid var(--line)" title="화면 모드 전환" aria-label="라이트/다크 모드 전환"></button>
   </header>
 
   <main id="app" class="flex-1 overflow-y-auto px-4 py-4 pb-24"></main>
@@ -60,6 +87,17 @@ const fab = document.getElementById('fab');
 
 function esc(s) { return (s ?? '').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+const themeBtn = document.getElementById('theme-btn');
+function applyThemeButton() { themeBtn.textContent = document.documentElement.dataset.theme === 'dark' ? '☀️' : '🌙'; }
+themeBtn.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('momsafe-theme', next);
+  applyThemeButton();
+  if (currentScreen) render(currentScreen); // 차트(Chart.js)는 캔버스라 CSS로 못 덮어써서 재렌더로 색 갱신
+});
+applyThemeButton();
+
 async function boot() {
   if (!patientId) { render('APP-001'); return; }
   patient = await getPatient(patientId);
@@ -80,7 +118,9 @@ function renderHeaderRisk() {
 
 document.querySelectorAll('.navbtn').forEach(b => b.addEventListener('click', () => render(b.dataset.go)));
 
+let currentScreen = null;
 async function render(screen) {
+  currentScreen = screen;
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('text-emerald-300', b.dataset.go === screen));
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('text-zinc-500', b.dataset.go !== screen));
   const screens = { 'APP-001': screenRegister, 'APP-002': screenDiagnosis, 'APP-003': screenVitals,
@@ -243,18 +283,20 @@ async function screenVitals() {
   });
 
   const last7 = vitals.slice(0, 7).reverse();
+  const isDark = document.documentElement.dataset.theme === 'dark';
+  const chartColor = { blue: isDark?'#7db4ff':'#2563eb', purple: isDark?'#bcb4f0':'#6d5fd8', amber: isDark?'#ffcf5c':'#a8730a', txt: isDark?'#e9e9ee':'#16171a', mut: isDark?'#9a9aa6':'#5a5e68' };
   new Chart(document.getElementById('v-chart'), {
     type: 'line',
     data: {
       labels: last7.map((v, i) => `#${i+1}`),
       datasets: [
-        { label: '수축기', data: last7.map(v => v.systolic_bp), borderColor: '#7db4ff', tension: .3 },
-        { label: '이완기', data: last7.map(v => v.diastolic_bp), borderColor: '#bcb4f0', tension: .3 },
-        { label: '혈당', data: last7.map(v => v.blood_sugar), borderColor: '#ffcf5c', tension: .3, yAxisID: 'y2' },
+        { label: '수축기', data: last7.map(v => v.systolic_bp), borderColor: chartColor.blue, tension: .3 },
+        { label: '이완기', data: last7.map(v => v.diastolic_bp), borderColor: chartColor.purple, tension: .3 },
+        { label: '혈당', data: last7.map(v => v.blood_sugar), borderColor: chartColor.amber, tension: .3, yAxisID: 'y2' },
       ],
     },
-    options: { scales: { y: { ticks: { color: '#9a9aa6' } }, y2: { position: 'right', ticks: { color: '#ffcf5c' } }, x: { ticks: { color: '#9a9aa6' } } },
-      plugins: { legend: { labels: { color: '#e9e9ee' } } } },
+    options: { scales: { y: { ticks: { color: chartColor.mut } }, y2: { position: 'right', ticks: { color: chartColor.amber } }, x: { ticks: { color: chartColor.mut } } },
+      plugins: { legend: { labels: { color: chartColor.txt } } } },
   });
 }
 

@@ -54,11 +54,13 @@ export const REJECTION_REASONS = [
   { code: 'OTHER_REASON', label: '기타' },
 ];
 
+// 색상은 다크/라이트 배경 둘 다에서 텍스트로도 읽혔을 때 대비가 충분하도록 중간 채도로 고정한다
+// (파스텔톤은 흰 배경에서 거의 안 보이고, 너무 짙으면 검은 배경에서 칙칙해지는 절충점).
 export function grade(score) {
-  if (score >= 70) return { key: 'EMERGENCY', label: '응급', cls: 'b-emer', color: '#ff6b6b' };
-  if (score >= 45) return { key: 'HIGH', label: '고위험', cls: 'b-high', color: '#ff9b6b' };
-  if (score >= 22) return { key: 'MEDIUM', label: '중위험', cls: 'b-mid', color: '#ffcf5c' };
-  return { key: 'LOW', label: '저위험', cls: 'b-low', color: '#54d98c' };
+  if (score >= 70) return { key: 'EMERGENCY', label: '응급', cls: 'b-emer', color: '#e8384a' };
+  if (score >= 45) return { key: 'HIGH', label: '고위험', cls: 'b-high', color: '#e07a2c' };
+  if (score >= 22) return { key: 'MEDIUM', label: '중위험', cls: 'b-mid', color: '#c99a12' };
+  return { key: 'LOW', label: '저위험', cls: 'b-low', color: '#2fb673' };
 }
 
 // 임신 주수: 분만예정일(EDD)은 통상 LMP+40주 기준이므로 실제 주수 = 40 - 잔여주수

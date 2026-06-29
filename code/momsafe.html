@@ -5,22 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>고맘워요 (Mom's Safe) — 공공 모자보건 안전망</title>
 <meta name="description" content="고위험 임산부 원스톱 보호 시스템 고맘워요 — 보건소·119·병원 관제 콘솔">
+<script>document.documentElement.dataset.theme = localStorage.getItem('momsafe-theme') || 'light';</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
-  :root{
+  :root, [data-theme="light"]{
+    --bg:#f3f4f6; --panel:#ffffff; --panel2:#edeff2; --line:#dde1e7;
+    --txt:#16171a; --mut:#5a5e68; --dim:#878b94;
+    --mom:#16a085; --sys:#6d5fd8; --health:#b8621f; --emer:#c2410c;
+    --red:#dc2f3f; --green:#1f9d55; --amber:#a8730a; --blue:#2563eb; --orange:#c2611f;
+    --on-accent:#ffffff; --bgrgb:255,255,255; --line2:#c8cdd5;
+    --r:14px;
+  }
+  [data-theme="dark"]{
     --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c22; --line:#2a2a33;
     --txt:#e9e9ee; --mut:#9a9aa6; --dim:#6b6b76;
     --mom:#9fe0b8; --sys:#bcb4f0; --health:#f5c79e; --emer:#f3d98a;
-    --red:#ff6b6b; --green:#54d98c; --amber:#ffcf5c; --blue:#7db4ff;
-    --r:14px;
+    --red:#ff6b6b; --green:#54d98c; --amber:#ffcf5c; --blue:#7db4ff; --orange:#ff9b6b;
+    --on-accent:#16131f; --bgrgb:10,10,12; --line2:#3a3a45;
   }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--txt);font-family:'Apple SD Gothic Neo','Malgun Gothic',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased}
   .wrap{max-width:1240px;margin:0 auto;padding:0 22px 60px}
 
-  header{position:sticky;top:0;z-index:50;background:rgba(10,10,12,.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
+  header{position:sticky;top:0;z-index:50;background:rgba(var(--bgrgb),.85);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)}
   .topbar{max-width:1240px;margin:0 auto;display:flex;align-items:center;gap:18px;padding:14px 22px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.3px;cursor:pointer}
   .logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--mom),var(--sys));display:flex;align-items:center;justify-content:center;font-size:18px;flex:0 0 auto}
@@ -31,9 +40,12 @@
   .roles button.on{background:var(--panel2);color:var(--txt);box-shadow:0 1px 0 rgba(255,255,255,.04)}
   .roles button.on.r-health{color:var(--health)} .roles button.on.r-119{color:var(--emer)} .roles button.on.r-hosp{color:var(--sys)}
 
+  .theme-btn{flex:0 0 auto;width:38px;height:38px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--txt);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+  .theme-btn:hover{border-color:var(--line2)}
+
   .subnav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
   .subnav button{background:var(--panel);border:1px solid var(--line);color:var(--mut);font-size:12.5px;font-weight:700;padding:8px 14px;border-radius:9px;cursor:pointer;font-family:inherit}
-  .subnav button.on{background:var(--panel2);color:var(--txt);border-color:#3a3a45}
+  .subnav button.on{background:var(--panel2);color:var(--txt);border-color:var(--line2)}
 
   .view{display:none;padding-top:26px} .view.on{display:block;animation:fade .25s}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
@@ -61,7 +73,7 @@
   .badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap}
   .b-low{background:rgba(84,217,140,.14);color:var(--green)}
   .b-mid{background:rgba(255,207,92,.14);color:var(--amber)}
-  .b-high{background:rgba(245,140,110,.16);color:#ff9b6b}
+  .b-high{background:rgba(245,140,110,.16);color:var(--orange)}
   .b-emer{background:rgba(255,107,107,.16);color:var(--red)}
   .pill{font-size:11px;padding:3px 9px;border-radius:6px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);white-space:nowrap}
 
@@ -70,9 +82,9 @@
   .who b{font-size:14px;font-weight:700} .who span{font-size:11.5px;color:var(--dim)}
 
   .btn{font-family:inherit;font-weight:700;font-size:13.5px;border-radius:9px;padding:10px 16px;border:1px solid var(--line);background:var(--panel2);color:var(--txt);cursor:pointer;transition:.15s}
-  .btn:hover{border-color:#3a3a45}
-  .btn.pri{background:linear-gradient(135deg,var(--sys),#9d92ea);border:none;color:#16131f}
-  .btn.ok{background:var(--green);border:none;color:#08210f}
+  .btn:hover{border-color:var(--line2)}
+  .btn.pri{background:linear-gradient(135deg,var(--sys),#9d92ea);border:none;color:var(--on-accent)}
+  .btn.ok{background:var(--green);border:none;color:var(--on-accent)}
   .btn.danger{background:rgba(255,107,107,.16);border-color:rgba(255,107,107,.3);color:var(--red)}
   .btn.sm{padding:7px 12px;font-size:12.5px}
   .btn:disabled{opacity:.4;cursor:not-allowed}
@@ -105,7 +117,7 @@
   .hosp{display:flex;align-items:center;gap:14px;background:var(--panel2);border:1px solid var(--line);border-radius:11px;padding:13px 15px;margin-bottom:10px;transition:.15s}
   .hosp.rank1{border-color:rgba(188,180,240,.5);box-shadow:0 0 0 1px rgba(188,180,240,.15)}
   .rk{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:var(--panel);border:1px solid var(--line);color:var(--mut);flex:0 0 auto}
-  .rank1 .rk{background:var(--sys);color:#16131f;border:none}
+  .rank1 .rk{background:var(--sys);color:var(--on-accent);border:none}
   .hosp .info{flex:1;min-width:0}
   .hosp .info b{font-size:14.5px} .hosp .info .meta{font-size:11.5px;color:var(--dim);margin-top:2px}
   .fit{text-align:right;flex:0 0 auto}
@@ -134,7 +146,7 @@
   .geo{position:relative;height:360px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .geo .leaflet-popup-content-wrapper{background:var(--panel);color:var(--txt);border:1px solid var(--line);border-radius:10px}
   .geo .leaflet-popup-tip{background:var(--panel)}
-  .geo .leaflet-control-attribution{background:rgba(10,10,12,.7) !important;color:var(--dim) !important}
+  .geo .leaflet-control-attribution{background:rgba(var(--bgrgb),.7) !important;color:var(--dim) !important}
   .geo .leaflet-control-attribution a{color:var(--mut) !important}
   .legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11.5px;color:var(--mut)}
   .legend span{display:inline-flex;align-items:center;gap:6px}
@@ -201,6 +213,7 @@
       <button class="r-119" data-r="ems">🚑 119 현장</button>
       <button class="r-hosp" data-r="hosp">🛏️ 병원</button>
     </div>
+    <button id="theme-btn" class="theme-btn" title="화면 모드 전환" aria-label="라이트/다크 모드 전환"></button>
   </div>
 </header>
 
@@ -355,6 +368,8 @@ function totalScore(p){ const r=p.risk; return r ? r.clinical_score+r.infra_scor
 let PATIENTS = [], HOSPITALS = [], REQUESTS = [], UNCONFIRMED = [];
 let dashTab='list', dashFilter='all', dashSearch='';
 let role='health';
+let infraMap=null, infraLayer=null, infraTiles=null;
+let openDrawerPid=null;
 let emsFound=null, emsAcute=new Set(), emsRequestId=null;
 let SELF_HOSP=null;
 const handledRequests = new Set();
@@ -394,6 +409,23 @@ document.getElementById('brand-home').addEventListener('click', ()=>{
   setRole('health');
 });
 
+/* ===================== 라이트/다크 모드 토글 (기본값: 라이트) ===================== */
+const themeBtn=document.getElementById('theme-btn');
+function applyThemeButton(){
+  const t=document.documentElement.dataset.theme;
+  themeBtn.textContent = t==='dark' ? '☀️' : '🌙';
+  setMapTheme?.(t);
+}
+themeBtn.addEventListener('click', ()=>{
+  const next = document.documentElement.dataset.theme==='dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  localStorage.setItem('momsafe-theme', next);
+  applyThemeButton();
+  // Chart.js는 캔버스라 CSS로 못 덮어써서, 차트가 떠 있는 드로어는 다시 그려 색을 갱신한다
+  if(openDrawerPid) openMomDetail(openDrawerPid);
+});
+applyThemeButton();
+
 /* ===================== DASH-001 산모 현황 목록 ===================== */
 function renderDash(){
   if(dashTab!=='list') return;
@@ -404,7 +436,7 @@ function renderDash(){
   kpi.innerHTML=`
     <div class="kpi"><div class="n">${PATIENTS.length}</div><div class="l">관리 대상 산모</div><div class="s">전체 등록</div></div>
     <div class="kpi"><div class="n" style="color:var(--red)">${emer}</div><div class="l">응급 등급</div><div class="s">즉시 병원 방문 권고</div></div>
-    <div class="kpi"><div class="n" style="color:#ff9b6b">${high}</div><div class="l">고위험 등급</div><div class="s">집중 모니터링</div></div>
+    <div class="kpi"><div class="n" style="color:var(--orange)">${high}</div><div class="l">고위험 등급</div><div class="s">집중 모니터링</div></div>
     <div class="kpi"><div class="n" style="color:var(--amber)">${prelim}</div><div class="l">예비위험 알림</div><div class="s">증상일기 상향 감지</div></div>`;
 
   const filters=[['all','전체보기'],['HIGH','실제위험 HIGH'],['MEDIUM','실제위험 MEDIUM'],['NEW_PRELIM','신규 예비위험도 경보']];
@@ -439,6 +471,7 @@ function renderDash(){
 
 /* ===================== DASH-002 산모 상세 프로필 ===================== */
 async function openMomDetail(patientId){
+  openDrawerPid=patientId;
   const p=await getPatient(patientId);
   const [diseases, vitals, diaries, notes] = await Promise.all([listDiseases(patientId), listVitals(patientId), listDiaries(patientId), listHealthNotes(patientId)]);
   const g=grade(totalScore(p));
@@ -479,22 +512,24 @@ async function openMomDetail(patientId){
     openMomDetail(patientId);
   });
   const last30=vitals.slice(0,30).reverse();
+  const isDark=document.documentElement.dataset.theme==='dark';
+  const cc={ blue:isDark?'#7db4ff':'#2563eb', purple:isDark?'#bcb4f0':'#6d5fd8', amber:isDark?'#ffcf5c':'#a8730a', txt:isDark?'#e9e9ee':'#16171a', mut:isDark?'#9a9aa6':'#5a5e68' };
   new Chart(document.getElementById('dash-vital-chart'), {
     type:'line',
     data:{ labels:last30.map((v,i)=>`#${i+1}`),
       datasets:[
-        {label:'수축기', data:last30.map(v=>v.systolic_bp), borderColor:'#7db4ff', tension:.3},
-        {label:'이완기', data:last30.map(v=>v.diastolic_bp), borderColor:'#bcb4f0', tension:.3},
-        {label:'혈당', data:last30.map(v=>v.blood_sugar), borderColor:'#ffcf5c', tension:.3, yAxisID:'y2'},
+        {label:'수축기', data:last30.map(v=>v.systolic_bp), borderColor:cc.blue, tension:.3},
+        {label:'이완기', data:last30.map(v=>v.diastolic_bp), borderColor:cc.purple, tension:.3},
+        {label:'혈당', data:last30.map(v=>v.blood_sugar), borderColor:cc.amber, tension:.3, yAxisID:'y2'},
       ]},
-    options:{ scales:{ y:{ticks:{color:'#9a9aa6'}}, y2:{position:'right',ticks:{color:'#ffcf5c'}}, x:{ticks:{color:'#9a9aa6'}} }, plugins:{legend:{labels:{color:'#e9e9ee'}}} },
+    options:{ scales:{ y:{ticks:{color:cc.mut}}, y2:{position:'right',ticks:{color:cc.amber}}, x:{ticks:{color:cc.mut}} }, plugins:{legend:{labels:{color:cc.txt}}} },
   });
   document.getElementById('scrim').classList.add('on');
   document.getElementById('drawer').classList.add('on');
 }
 document.getElementById('scrim').addEventListener('click', closeDrawer);
 document.getElementById('drawer-close').addEventListener('click', closeDrawer);
-function closeDrawer(){ document.getElementById('scrim').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); }
+function closeDrawer(){ document.getElementById('scrim').classList.remove('on'); document.getElementById('drawer').classList.remove('on'); openDrawerPid=null; }
 
 /* ===================== DASH-003 예비위험도 알림 관리 ===================== */
 function renderAlerts(){
@@ -518,11 +553,15 @@ function renderAlerts(){
 }
 
 /* ===================== DASH-004 지역 인프라 현황 (Leaflet + OpenStreetMap, API 키 불필요) ===================== */
-let infraMap=null, infraLayer=null;
+function tileUrlForTheme(t){ return `https://{s}.basemaps.cartocdn.com/${t==='dark'?'dark_all':'light_all'}/{z}/{x}/{y}{r}.png`; }
+function setMapTheme(t){
+  if(!infraMap||!infraTiles) return;
+  infraTiles.setUrl(tileUrlForTheme(t));
+}
 function renderInfra(){
   if(!infraMap){
     infraMap=L.map('geo-map', { attributionControl:true }).setView([37.5665,126.9780], 11);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    infraTiles=L.tileLayer(tileUrlForTheme(document.documentElement.dataset.theme), {
       attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
       subdomains:'abcd', maxZoom:19,
     }).addTo(infraMap);
