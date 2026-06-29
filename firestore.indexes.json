@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    {
+      "collectionGroup": "diary",
+      "queryScope": "COLLECTION_GROUP",
+      "fields": [
+        { "fieldPath": "hospital_visit_recommended", "order": "ASCENDING" },
+        { "fieldPath": "visit_confirmed", "order": "ASCENDING" }
+      ]
+    }
+  ],
+  "fieldOverrides": []
+}
