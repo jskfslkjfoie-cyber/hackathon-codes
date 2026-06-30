@@ -88,7 +88,9 @@ export function calcClinicalScore(diseases) {
 }
 
 export function infraScoreFromGrade(regionGrade) {
-  return { VULNERABLE: 20, MODERATE: 10, ADEQUATE: 0 }[regionGrade] ?? 0;
+  // 시드 데이터셋은 HIGH_RISK/MEDIUM_RISK/LOW_RISK 표기를 쓰고, 기존 등록 흐름은
+  // VULNERABLE/MODERATE/ADEQUATE를 쓴다 — 둘 다 동일 가중치 밴드로 매핑한다.
+  return { VULNERABLE: 20, MODERATE: 10, ADEQUATE: 0, HIGH_RISK: 20, MEDIUM_RISK: 10, LOW_RISK: 0 }[regionGrade] ?? 0;
 }
 
 export function gestationWeight(week) {
@@ -165,22 +167,159 @@ export async function getPatient(patientId) {
   return snap.exists() ? { patient_id: snap.id, ...snap.data() } : null;
 }
 
-// 최초 1회 부트스트랩: 데모 산모 시드 (등록 흐름 시연 없이도 보건소/119 화면을 바로 확인할 수 있도록)
+// 시트 날짜 문자열 → Firestore Timestamp (데모 시나리오의 고정 시각을 그대로 보존)
+const ts = (s) => Timestamp.fromDate(new Date(s));
+
+// 가상 시드 데이터셋(고맘워요_가상시드데이터)의 산모 4명 + 케이스 A/B/C/D.
+// 위험도(risk)는 시트 9_RISK_ASSESSMENT를 그대로 저장하고 recomputeRisk를 호출하지 않는다.
+// 단 clinical/infra_score만은 앱 UI가 grade(clinical+infra+gestation)로 배지를 계산하는
+// 0~100 모델에 맞춰 sum이 시트 risk_level 밴드(HIGH 45~69 / MEDIUM 22~44)에 떨어지도록
+// 스케일했다(시트의 1~3 tier 숫자를 그대로 쓰면 배지가 LOW로 잘못 표시되므로). 등급 자체는 일치.
+const DEMO_PATIENTS = [
+  {
+    id: 'p1', name: '김지수', phone_number: '010-1234-5678', expected_delivery_date: '2026-09-15',
+    gestation_week: 29, multiple_pregnancy: false, created_at: '2026-05-01',
+    scenario: '케이스A — 전치태반/분만취약지/응급',
+    location: { location_type: 'HOME', address: '경북 의성군 의성읍 의성로 100', region_code: '4720000000', region_grade: 'HIGH_RISK', latitude: 36.3525, longitude: 128.6970, stay_until: null },
+    risk: { clinical_score: 40, infra_score: 8, gestation_weight: 0, risk_level: 'HIGH', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T06:00:00' },
+    diseases: [{ disease_name: '전치태반', severity: 'GRADE_3', diagnosed_at: '2026-05-10' }],
+    vitals: [
+      { systolic_bp: 118, diastolic_bp: 76, blood_glucose: 92, weight_kg: 72, height_cm: 163, bmi: 27.1, measured_at: '2026-06-15T09:00:00' },
+      { systolic_bp: 125, diastolic_bp: 80, blood_glucose: 95, weight_kg: 73.5, height_cm: 163, bmi: 27.6, measured_at: '2026-06-22T10:00:00' },
+      { systolic_bp: 138, diastolic_bp: 88, blood_glucose: 102, weight_kg: 75, height_cm: 163, bmi: 28.2, measured_at: '2026-06-28T08:30:00' },
+      { systolic_bp: 155, diastolic_bp: 98, blood_glucose: 115, weight_kg: 76.5, height_cm: 163, bmi: 28.8, measured_at: '2026-06-29T06:00:00' },
+    ],
+    diary: [
+      { content: '배가 살짝 당기는 느낌이에요', llm_summary: '복부 불편감. 전치태반 환자 — 출혈 여부 추가 확인 필요', detected_signals: '복부불편', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-26T20:00:00' },
+    ],
+    recommendations: [
+      { hospital_id: 'h1', priority_rank: 1, distance_km: 42.3, eta_minutes: 38 },
+      { hospital_id: 'h2', priority_rank: 2, distance_km: 98.7, eta_minutes: 82 },
+      { hospital_id: 'h3', priority_rank: 3, distance_km: 85.2, eta_minutes: 70 },
+    ],
+  },
+  {
+    id: 'p2', name: '이미래', phone_number: '010-2345-6789', expected_delivery_date: '2026-10-20',
+    gestation_week: 24, multiple_pregnancy: false, created_at: '2026-06-01',
+    scenario: '케이스B — 임신중독증/지역이탈',
+    location: { location_type: 'TEMPORARY', address: '대구광역시 수성구 달구벌대로 500', region_code: '2720010300', region_grade: 'MEDIUM_RISK', latitude: 35.8714, longitude: 128.6014, stay_until: '2026-07-10' },
+    risk: { clinical_score: 40, infra_score: 6, gestation_weight: 14, risk_level: 'HIGH', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T07:00:00' },
+    diseases: [
+      { disease_name: '임신성 고혈압성 질환', severity: 'GRADE_3', diagnosed_at: '2026-06-05' },
+      { disease_name: '임신중독증', severity: 'GRADE_3', diagnosed_at: '2026-06-10' },
+    ],
+    vitals: [
+      { systolic_bp: 142, diastolic_bp: 92, blood_glucose: 98, weight_kg: 65, height_cm: 161, bmi: 25.1, measured_at: '2026-06-20T09:00:00' },
+      { systolic_bp: 150, diastolic_bp: 96, blood_glucose: 105, weight_kg: 66, height_cm: 161, bmi: 25.5, measured_at: '2026-06-28T08:00:00' },
+    ],
+    diary: [
+      { content: '머리가 자주 아파요. 대구 친정에 왔는데 좀 쉬고 있어요', llm_summary: '두통 반복. 임신성 고혈압 환자 — 즉각 주의 필요', detected_signals: '두통', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-27T19:00:00' },
+    ],
+    recommendations: [
+      { hospital_id: 'h4', priority_rank: 1, distance_km: 3.2, eta_minutes: 8 },
+      { hospital_id: 'h5', priority_rank: 2, distance_km: 4.1, eta_minutes: 10 },
+      { hospital_id: 'h6', priority_rank: 3, distance_km: 7.8, eta_minutes: 18 },
+    ],
+  },
+  {
+    id: 'p3', name: '박소연', phone_number: '010-3456-7890', expected_delivery_date: '2026-08-30',
+    gestation_week: 32, multiple_pregnancy: false, created_at: '2026-04-15',
+    scenario: '케이스C — 증상일기/예비위험도',
+    location: { location_type: 'HOME', address: '경기도 성남시 분당구 판교로 300', region_code: '4113510900', region_grade: 'LOW_RISK', latitude: 37.3943, longitude: 127.1109, stay_until: null },
+    risk: { clinical_score: 28, infra_score: 4, gestation_weight: 0, risk_level: 'MEDIUM', pre_risk_score: 75, pre_risk_level: 'HIGH', risk_track: 'PRELIMINARY', assessed_at: '2026-06-28T21:30:00' },
+    diseases: [{ disease_name: '임신성 당뇨병 (인슐린 치료 안하는 경우)', severity: 'GRADE_2', diagnosed_at: '2026-04-20' }],
+    vitals: [
+      { systolic_bp: 110, diastolic_bp: 70, blood_glucose: 145, weight_kg: 68.5, height_cm: 158, bmi: 27.5, measured_at: '2026-06-25T09:00:00' },
+      { systolic_bp: 115, diastolic_bp: 73, blood_glucose: 155, weight_kg: 69, height_cm: 158, bmi: 27.7, measured_at: '2026-06-28T09:00:00' },
+    ],
+    diary: [
+      { content: '요즘 소변이 자주 마렵고 약간 피곤해요', llm_summary: '일상적 임신 증상 범위. 특이 신호 없음', detected_signals: '없음', pre_risk_level: 'LOW', hospital_visit_recommended: false, visit_confirmed: false, created_at: '2026-06-20T21:00:00' },
+      { content: '두통이 좀 있고 발이 약간 부은 것 같아요', llm_summary: '두통+부종 감지. 임신중독증 초기 신호 가능성', detected_signals: '두통,부종', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-25T22:00:00' },
+      { content: '두통이 심해지고 눈이 침침해요. 발도 많이 부었어요', llm_summary: '두통+시야장애+부종 복합 감지. 임신중독증 고위험 신호', detected_signals: '두통,시야장애,부종', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-28T21:30:00' },
+    ],
+    recommendations: [
+      { hospital_id: 'h7', priority_rank: 1, distance_km: 2.1, eta_minutes: 6 },
+      { hospital_id: 'h8', priority_rank: 2, distance_km: 0.8, eta_minutes: 3 },
+    ],
+  },
+  {
+    id: 'p4', name: '최은지', phone_number: '010-4567-8901', expected_delivery_date: '2026-11-10',
+    gestation_week: 20, multiple_pregnancy: true, created_at: '2026-06-15',
+    scenario: '추가 케이스 — 쌍둥이/고령',
+    location: { location_type: 'HOME', address: '부산광역시 해운대구 센텀중앙로 400', region_code: '2635010100', region_grade: 'LOW_RISK', latitude: 35.1731, longitude: 129.1325, stay_until: null },
+    risk: { clinical_score: 24, infra_score: 4, gestation_weight: 14, risk_level: 'MEDIUM', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T10:00:00' },
+    diseases: [
+      { disease_name: '다태임신', severity: 'GRADE_2', diagnosed_at: '2026-06-20' },
+      { disease_name: '고혈압', severity: 'GRADE_2', diagnosed_at: '2026-06-20' },
+    ],
+    vitals: [
+      { systolic_bp: 120, diastolic_bp: 78, blood_glucose: 90, weight_kg: 78, height_cm: 160, bmi: 30.5, measured_at: '2026-06-28T10:00:00' },
+    ],
+    diary: [],
+    recommendations: [
+      { hospital_id: 'h9', priority_rank: 1, distance_km: 5.4, eta_minutes: 12 },
+      { hospital_id: 'h10', priority_rank: 2, distance_km: 8.9, eta_minutes: 20 },
+    ],
+  },
+];
+
+// 최초 1회 부트스트랩: 데모 산모 시드 (등록 흐름 시연 없이도 보건소/119 화면을 바로 확인할 수 있도록).
+// createPatient를 우회하고 setDoc으로 직접 생성한다 — gestation_week·created_at·risk를 시트 값 그대로
+// 보존해야 하므로(EDD 기반 자동 계산/serverTimestamp/재계산을 쓰지 않는다).
 export async function seedPatientsIfEmpty() {
   await authReady;
   const snap = await getDocs(collection(db, 'patients'));
   if (!snap.empty) return;
-  const demo = [
-    { name: '산모 A', phone_number: '010-1234-5601', weeksFromNow: 6, diseases: [['전치태반', 'GRADE_3'], ['임신성 고혈압', 'GRADE_2']], loc: { latitude: 37.5060, longitude: 126.9570 } },
-    { name: '산모 B', phone_number: '010-1234-5602', weeksFromNow: 10, diseases: [['임신성 당뇨', 'GRADE_1']], loc: { latitude: 37.5640, longitude: 127.0020 } },
-    { name: '산모 C', phone_number: '010-1234-5603', weeksFromNow: 14, diseases: [['다태임신', 'GRADE_2'], ['조기진통', 'GRADE_2']], loc: { latitude: 37.4980, longitude: 126.9300 } },
-  ];
-  for (const d of demo) {
-    const edd = new Date(Date.now() + d.weeksFromNow * 7 * 86400000).toISOString().slice(0, 10);
-    const id = await createPatient({ name: d.name, phone_number: d.phone_number, expected_delivery_date: edd, multiple_pregnancy: false });
-    for (const [name, sev] of d.diseases) await addDisease(id, name, sev);
-    await updateLocation(id, { location_type: 'HOME', latitude: d.loc.latitude, longitude: d.loc.longitude, region_grade: 'ADEQUATE' });
+  const hospName = (id) => DEMO_HOSPITALS.find(h => h.id === id)?.hospital_name || '';
+  const hospBeds = (id) => DEMO_HOSPITALS.find(h => h.id === id)?.nicu_available_beds ?? 0;
+  for (const p of DEMO_PATIENTS) {
+    await setDoc(doc(db, 'patients', p.id), {
+      name: p.name, phone_number: p.phone_number, expected_delivery_date: p.expected_delivery_date,
+      gestation_week: p.gestation_week, multiple_pregnancy: p.multiple_pregnancy, scenario: p.scenario,
+      created_at: ts(p.created_at),
+      location: p.location,
+      risk: { ...p.risk, assessed_at: ts(p.risk.assessed_at) },
+      hospital_recommendation: p.recommendations.map(r => ({
+        hospital_id: r.hospital_id, hospital_name: hospName(r.hospital_id), priority_rank: r.priority_rank,
+        distance_km: r.distance_km, eta_minutes: r.eta_minutes, nicu_available_beds: hospBeds(r.hospital_id),
+      })),
+    });
+    for (const d of p.diseases) await addDoc(collection(db, 'patients', p.id, 'diseases'), { disease_name: d.disease_name, severity: d.severity, diagnosed_at: ts(d.diagnosed_at) });
+    for (const v of p.vitals) await addDoc(collection(db, 'patients', p.id, 'vitals'), {
+      systolic_bp: v.systolic_bp, diastolic_bp: v.diastolic_bp, blood_glucose: v.blood_glucose,
+      blood_sugar: v.blood_glucose, weight_kg: v.weight_kg, height_cm: v.height_cm, bmi: v.bmi, measured_at: ts(v.measured_at),
+    });
+    for (const e of p.diary) await addDoc(collection(db, 'patients', p.id, 'diary'), { ...e, created_at: ts(e.created_at) });
   }
+}
+
+// 케이스 A/B 응급신고 + 병원 수용 릴레이 로그 시드 (10_EMERGENCY). 119 콘솔이 비어 있어도
+// 시나리오를 바로 시연할 수 있도록 emergencyRequests 컬렉션이 비어 있을 때 1회 생성한다.
+export async function seedEmergenciesIfEmpty() {
+  await authReady;
+  const snap = await getDocs(collection(db, 'emergencyRequests'));
+  if (!snap.empty) return;
+  const recsFor = async (patientId) => {
+    const pd = await getDoc(doc(db, 'patients', patientId));
+    return pd.exists() ? (pd.data().hospital_recommendation || []) : [];
+  };
+  // req1 — 케이스A(김지수): 안동병원(1순위) NICU 만실로 거절 → 경북대(2순위) 수용 확정
+  const p1 = await getPatient('p1');
+  await setDoc(doc(db, 'emergencyRequests', 'er1'), {
+    patient_id: 'p1', current_risk_level: 'HIGH', request_status: 'ACCEPTED',
+    profile_snapshot: { name: p1?.name, gestation_week: p1?.gestation_week, risk: p1?.risk },
+    recommendations: await recsFor('p1'), current_rank: 2, accepted_hospital_id: 'h2', created_at: ts('2026-06-29T06:05:00'),
+  });
+  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r1'), { hospital_id: 'h1', response_type: 'REJECT', priority_rank: 1, rejection_reason: 'NICU_SHORTAGE', responded_at: ts('2026-06-29T06:06:00') });
+  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r2'), { hospital_id: 'h2', response_type: 'ACCEPT', priority_rank: 2, rejection_reason: null, responded_at: ts('2026-06-29T06:08:00') });
+  // req2 — 케이스B(이미래): 대구 체류 중 응급 → 영남대(1순위) 즉시 수용
+  const p2 = await getPatient('p2');
+  await setDoc(doc(db, 'emergencyRequests', 'er2'), {
+    patient_id: 'p2', current_risk_level: 'HIGH', request_status: 'ACCEPTED',
+    profile_snapshot: { name: p2?.name, gestation_week: p2?.gestation_week, risk: p2?.risk },
+    recommendations: await recsFor('p2'), current_rank: 1, accepted_hospital_id: 'h4', created_at: ts('2026-06-29T07:05:00'),
+  });
+  await setDoc(doc(db, 'emergencyRequests', 'er2', 'responses', 'r1'), { hospital_id: 'h4', response_type: 'ACCEPT', priority_rank: 1, rejection_reason: null, responded_at: ts('2026-06-29T07:06:00') });
 }
 
 export async function listPatients() {
@@ -300,19 +439,27 @@ export async function recomputeRisk(patientId, opts = {}) {
 }
 
 /* ===================== Firestore: HOSPITAL ===================== */
+// 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).
+// 결정적 문서 ID(h1~h10)를 써서 추천/응급 릴레이 로그가 hospital_id로 교차 참조할 수 있게 한다.
+// 상태 행이 없는 h8·h10은 합리적 기본값(NICU 2병상, 당직의 재실)을 채운다.
 const DEMO_HOSPITALS = [
-  { hospital_name: '중앙대학교병원', high_risk_delivery: true, nicu_available: true, nicu_available_beds: 6, is_obgyn_on_call: true, latitude: 37.5060, longitude: 126.9570, emergency_phone: '0000000000' },
-  { hospital_name: '권역 모자센터', high_risk_delivery: true, nicu_available: true, nicu_available_beds: 9, is_obgyn_on_call: true, latitude: 37.5640, longitude: 127.0020, emergency_phone: '0000000000' },
-  { hospital_name: '성모여성병원', high_risk_delivery: true, nicu_available: true, nicu_available_beds: 3, is_obgyn_on_call: true, latitude: 37.4980, longitude: 126.9300, emergency_phone: '0000000000' },
-  { hospital_name: '시립의료원', high_risk_delivery: true, nicu_available: false, nicu_available_beds: 0, is_obgyn_on_call: true, latitude: 37.5380, longitude: 127.0700, emergency_phone: '0000000000' },
-  { hospital_name: '북부권역응급센터', high_risk_delivery: true, nicu_available: true, nicu_available_beds: 5, is_obgyn_on_call: false, latitude: 37.6500, longitude: 127.0260, emergency_phone: '0000000000' },
+  { id: 'h1', hospital_name: '안동병원', region_code: '4713000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '054-840-1000', latitude: 36.5720, longitude: 128.7320, is_regional_center: true, nicu_available_beds: 0, is_obgyn_on_call: false },
+  { id: 'h2', hospital_name: '경북대학교병원', region_code: '4711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-5114', latitude: 35.8685, longitude: 128.6060, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true },
+  { id: 'h3', hospital_name: '칠곡경북대학교병원', region_code: '4719000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-2114', latitude: 35.9845, longitude: 128.4780, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: true },
+  { id: 'h4', hospital_name: '영남대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-620-3114', latitude: 35.8600, longitude: 128.6220, is_regional_center: true, nicu_available_beds: 2, is_obgyn_on_call: true },
+  { id: 'h5', hospital_name: '대구가톨릭대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-650-4114', latitude: 35.8714, longitude: 128.6070, is_regional_center: false, nicu_available_beds: 0, is_obgyn_on_call: true },
+  { id: 'h6', hospital_name: '계명대학교동산병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: false, emergency_phone: '053-250-7114', latitude: 35.8580, longitude: 128.4980, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: false },
+  { id: 'h7', hospital_name: '분당서울대학교병원', region_code: '4113000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '031-787-7114', latitude: 37.3490, longitude: 127.1230, is_regional_center: true, nicu_available_beds: 4, is_obgyn_on_call: true },
+  { id: 'h8', hospital_name: '차의과학대학교 분당차병원', region_code: '4113000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '031-780-5000', latitude: 37.3940, longitude: 127.1110, is_regional_center: false, nicu_available_beds: 2, is_obgyn_on_call: true },
+  { id: 'h9', hospital_name: '부산대학교병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-240-7114', latitude: 35.1760, longitude: 129.0630, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true },
+  { id: 'h10', hospital_name: '고신대학교복음병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-990-6114', latitude: 35.1040, longitude: 128.9990, is_regional_center: false, nicu_available_beds: 2, is_obgyn_on_call: true },
 ];
 // 최초 1회 부트스트랩: hospitals 컬렉션이 비어 있으면 데모 병원 시드 — 별도 관리자 권한 없이 일반 클라이언트 권한으로 동작
 export async function seedHospitalsIfEmpty() {
   await authReady;
   const snap = await getDocs(collection(db, 'hospitals'));
   if (!snap.empty) return;
-  await Promise.all(DEMO_HOSPITALS.map(h => addDoc(collection(db, 'hospitals'), h)));
+  await Promise.all(DEMO_HOSPITALS.map(({ id, ...h }) => setDoc(doc(db, 'hospitals', id), h)));
 }
 
 export async function listHospitals() {

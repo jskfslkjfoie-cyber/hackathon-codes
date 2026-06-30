@@ -350,7 +350,7 @@ import {
   addSymptomDiary, listDiaries, confirmDiaryVisit, watchUnconfirmedDiaries,
   watchHospitals, updateHospitalStatus, hospitalPriority, saveRecommendations,
   createEmergencyRequest, addEmsAssessment, watchEmergencyRequests, watchEmergencyRequest,
-  respondToRequest, watchResponses, seedHospitalsIfEmpty, seedPatientsIfEmpty, ensureHospitalAddress,
+  respondToRequest, watchResponses, seedHospitalsIfEmpty, seedPatientsIfEmpty, seedEmergenciesIfEmpty, ensureHospitalAddress,
 } from '/code/data.js';
 
 // 도로명만 있고 번지가 없는 좌표는 텍스트 주소로 검색하면 네이버가 그 길 전체를 보여준다.
@@ -358,7 +358,8 @@ import {
 function naverMapUrl(lat, lng){ return `https://map.naver.com/p/search/${encodeURIComponent(lat + ', ' + lng)}`; }
 
 seedHospitalsIfEmpty();
-seedPatientsIfEmpty();
+// 응급 릴레이 로그 시드는 산모(p1/p2)를 읽으므로 산모 시드 완료 후 실행한다.
+seedPatientsIfEmpty().then(seedEmergenciesIfEmpty);
 
 function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function maskName(name){ if(!name) return '익명'; const s=[...name]; if(s.length<=2) return s[0]+'*'; return s[0]+'*'.repeat(s.length-2)+s[s.length-1]; }

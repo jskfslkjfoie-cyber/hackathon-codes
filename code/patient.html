@@ -4,7 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>고맘워요 (Mom's Safe) — 산모 앱</title>
-<meta name="description" content="고위험 임산부 원스톱 보호 시스템 고맘워요 — 산모용 모바일 앱">
+<meta name="description" content="고위험 임산부 원스톱 보호 시스템 고맘워요 — 산모용 모바일 앱. 진단서 기반 위험도 산출, 증상일기 AI 분석, 추천 병원·응급 이송 안내.">
+<meta name="robots" content="index, follow">
+<meta name="theme-color" content="#0a0a0c">
+<link rel="canonical" href="https://momsafe.app/code/patient.html">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ko_KR">
+<meta property="og:site_name" content="고맘워요 (Mom's Safe)">
+<meta property="og:title" content="고맘워요 (Mom's Safe) — 산모 앱">
+<meta property="og:description" content="고위험 임산부 원스톱 보호 시스템 — 진단서 기반 위험도 산출, 증상일기 AI 분석, 추천 병원·응급 이송 안내.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="고맘워요 (Mom's Safe) — 산모 앱">
+<meta name="twitter:description" content="고위험 임산부 원스톱 보호 시스템 — 산모용 모바일 앱.">
 <script>document.documentElement.dataset.theme = localStorage.getItem('momsafe-theme') || 'light';</script>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -17,7 +28,9 @@
     --bg:#0a0a0c; --panel:#141418; --panel2:#1c1c22; --line:#2a2a33;
     --txt:#e9e9ee; --mut:#9a9aa6; --dim:#6b6b76; --mom:#9fe0b8;
   }
-  html,body{background:var(--bg)}
+  /* PRD: PC에서 폰 프레임(max-w-md) 양옆 여백을 어두운 톤으로 고정해, 라이트 테마에서도
+     화면 중앙의 독립 스마트폰 앱처럼 보이게 한다. 프레임 내부는 테마(아래 규칙)를 따른다. */
+  html,body{background:#0a0a0c;overflow-x:hidden}
   ::-webkit-scrollbar{width:0;height:0}
   .chip{display:inline-block;font-size:12px;padding:6px 12px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--mut);cursor:pointer;margin:0 6px 6px 0}
   .chip.on{background:rgba(22,160,133,.16);border-color:rgba(22,160,133,.5);color:var(--mom)}
@@ -29,7 +42,8 @@
   /* 라이트 모드: Tailwind 다크 팔레트 유틸리티 클래스를 화면 곳곳에서 직접 사용하고 있어
      (다크모드 전제로 작성됨), 토글 시 보이는 색만 별도로 덮어쓴다. 강조색 위 고정 텍스트
      (text-zinc-900 on bg-emerald-300 등)처럼 버튼 자체 배경에 묶인 페어는 그대로 둔다. */
-  [data-theme="light"] body{background:var(--bg)}
+  /* 라이트 테마에서도 body(=PC 양옆 여백)는 위에서 고정한 어두운 톤을 유지하고,
+     폰 프레임 내부(.bg-[#0a0a0c])만 밝은 배경으로 덮는다. */
   [data-theme="light"] .bg-\[\#0a0a0c\]{background-color:var(--bg) !important}
   [data-theme="light"] .bg-zinc-900{background-color:var(--panel) !important}
   [data-theme="light"] .bg-zinc-800{background-color:var(--panel2) !important}
