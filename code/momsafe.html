@@ -455,6 +455,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--red)"></span>9_RISK_ASSESSMENT — 위험도 평가 (실제+예비) <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>risk_id</th><th>patient_id</th><th>clinical_score</th><th>infra_score</th><th>pre_risk_score</th><th>risk_level</th><th>pre_risk_level</th><th>risk_track</th><th>assessed_at</th></tr></thead>
+        <tbody id="guide-risk-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -581,6 +591,33 @@ function renderGuideRecommendations(){
       <td>${esc(r.eta_minutes)}</td>
       <td>${esc(fmtDateTime(r.calculated_at))}</td>
     </tr>`).join('') || '<tr><td colspan="7" class="muted">추천 시드 데이터가 없습니다.</td></tr>';
+  renderGuideRisk();
+}
+
+// 9_RISK_ASSESSMENT: 산모 risk 스냅샷을 시트 그대로 보여준다. clinical/infra는 시트 원본 tier
+// (clinical_tier/infra_tier)를 표시하고, risk_level/pre_risk_level/risk_track은 저장값과 동일하다.
+function renderGuideRisk(){
+  const el=document.getElementById('guide-risk-rows');
+  if(!el) return;
+  const fmtDateTime=t=>{ if(!t?.toDate) return t||''; const d=t.toDate(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const lvlColor={LOW:'var(--green)',MEDIUM:'var(--amber)',HIGH:'var(--red)',EMERGENCY:'var(--red)'};
+  const lvl=v=> v ? `<b style="color:${lvlColor[v]||'var(--mut)'}">${esc(v)}</b>` : '';
+  const patients=[...PATIENTS].filter(p=>p.risk).sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  el.innerHTML = patients.map((p,i)=>{
+    const r=p.risk;
+    return `
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(p.patient_id)}</td>
+      <td>${esc(r.clinical_tier ?? r.clinical_score)}</td>
+      <td>${esc(r.infra_tier ?? r.infra_score)}</td>
+      <td>${r.pre_risk_score ? esc(r.pre_risk_score) : ''}</td>
+      <td>${lvl(r.risk_level)}</td>
+      <td>${lvl(r.pre_risk_level)}</td>
+      <td>${esc(r.risk_track||'')}</td>
+      <td>${esc(fmtDateTime(r.assessed_at))}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="9" class="muted">위험도 평가 시드 데이터가 없습니다.</td></tr>';
 }
 
 // 6_HOSPITAL: 전역 HOSPITALS(실시간)를 hospital_id 순으로 시트 컬럼 그대로 보여준다.
