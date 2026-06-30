@@ -263,13 +263,11 @@ const DEMO_PATIENTS = [
   },
 ];
 
-// 최초 1회 부트스트랩: 데모 산모 시드 (등록 흐름 시연 없이도 보건소/119 화면을 바로 확인할 수 있도록).
+// 데모 산모 시드 (등록 흐름 시연 없이도 보건소/119 화면을 바로 확인할 수 있도록).
 // createPatient를 우회하고 setDoc으로 직접 생성한다 — gestation_week·created_at·risk를 시트 값 그대로
-// 보존해야 하므로(EDD 기반 자동 계산/serverTimestamp/재계산을 쓰지 않는다).
-export async function seedPatientsIfEmpty() {
-  await authReady;
-  const snap = await getDocs(collection(db, 'patients'));
-  if (!snap.empty) return;
+// 보존해야 하므로(EDD 기반 자동 계산/serverTimestamp/재계산을 쓰지 않는다). 서브컬렉션도 결정적
+// ID(d0/v0/e0…)로 써서 재실행(동시 로드)해도 중복이 생기지 않게 한다.
+async function writePatients() {
   const hospName = (id) => DEMO_HOSPITALS.find(h => h.id === id)?.hospital_name || '';
   const hospBeds = (id) => DEMO_HOSPITALS.find(h => h.id === id)?.nicu_available_beds ?? 0;
   for (const p of DEMO_PATIENTS) {
@@ -284,21 +282,18 @@ export async function seedPatientsIfEmpty() {
         distance_km: r.distance_km, eta_minutes: r.eta_minutes, nicu_available_beds: hospBeds(r.hospital_id),
       })),
     });
-    for (const d of p.diseases) await addDoc(collection(db, 'patients', p.id, 'diseases'), { disease_name: d.disease_name, severity: d.severity, diagnosed_at: ts(d.diagnosed_at) });
-    for (const v of p.vitals) await addDoc(collection(db, 'patients', p.id, 'vitals'), {
+    await Promise.all(p.diseases.map((d, i) => setDoc(doc(db, 'patients', p.id, 'diseases', `d${i}`), { disease_name: d.disease_name, severity: d.severity, diagnosed_at: ts(d.diagnosed_at) })));
+    await Promise.all(p.vitals.map((v, i) => setDoc(doc(db, 'patients', p.id, 'vitals', `v${i}`), {
       systolic_bp: v.systolic_bp, diastolic_bp: v.diastolic_bp, blood_glucose: v.blood_glucose,
       blood_sugar: v.blood_glucose, weight_kg: v.weight_kg, height_cm: v.height_cm, bmi: v.bmi, measured_at: ts(v.measured_at),
-    });
-    for (const e of p.diary) await addDoc(collection(db, 'patients', p.id, 'diary'), { ...e, created_at: ts(e.created_at) });
+    })));
+    await Promise.all(p.diary.map((e, i) => setDoc(doc(db, 'patients', p.id, 'diary', `e${i}`), { ...e, created_at: ts(e.created_at) })));
   }
 }
 
 // 케이스 A/B 응급신고 + 병원 수용 릴레이 로그 시드 (10_EMERGENCY). 119 콘솔이 비어 있어도
-// 시나리오를 바로 시연할 수 있도록 emergencyRequests 컬렉션이 비어 있을 때 1회 생성한다.
-export async function seedEmergenciesIfEmpty() {
-  await authReady;
-  const snap = await getDocs(collection(db, 'emergencyRequests'));
-  if (!snap.empty) return;
+// 시나리오를 바로 시연할 수 있도록 생성한다.
+async function writeEmergencies() {
   const recsFor = async (patientId) => {
     const pd = await getDoc(doc(db, 'patients', patientId));
     return pd.exists() ? (pd.data().hospital_recommendation || []) : [];
@@ -320,6 +315,36 @@ export async function seedEmergenciesIfEmpty() {
     recommendations: await recsFor('p2'), current_rank: 1, accepted_hospital_id: 'h4', created_at: ts('2026-06-29T07:05:00'),
   });
   await setDoc(doc(db, 'emergencyRequests', 'er2', 'responses', 'r1'), { hospital_id: 'h4', response_type: 'ACCEPT', priority_rank: 1, rejection_reason: null, responded_at: ts('2026-06-29T07:06:00') });
+}
+
+// 컬렉션 내 모든 문서(+지정 서브컬렉션)를 삭제. Firestore 클라이언트는 서브컬렉션을 자동
+// 삭제하지 않으므로 명시적으로 비운다.
+async function clearAllDocs(collName, subcols = []) {
+  const snap = await getDocs(collection(db, collName));
+  for (const d of snap.docs) {
+    for (const sub of subcols) {
+      const subSnap = await getDocs(collection(db, collName, d.id, sub));
+      await Promise.all(subSnap.docs.map(s => deleteDoc(s.ref)));
+    }
+    await deleteDoc(d.ref);
+  }
+}
+
+// 버전 마커 기반 시드. 마커 버전이 최신(SEED_VERSION)이면 아무것도 안 하고, 구버전/최초이면
+// 기존 데모 데이터(구 시드 포함)를 모두 지운 뒤 최신 시나리오 데이터로 덮어쓴다. 결정적 문서
+// ID를 쓰므로 동시 로드로 두 번 실행돼도 최종 상태는 동일하다(중복 없음).
+export async function ensureSeedData() {
+  await authReady;
+  const markerRef = doc(db, 'hospitals', SEED_MARKER_ID);
+  const marker = await getDoc(markerRef);
+  if (marker.exists() && (marker.data().version || 0) >= SEED_VERSION) return;
+  await clearAllDocs('emergencyRequests', ['responses', 'assessment']);
+  await clearAllDocs('patients', ['diseases', 'vitals', 'diary', 'notes']);
+  await clearAllDocs('hospitals');
+  await writeHospitals();
+  await writePatients();
+  await writeEmergencies();
+  await setDoc(markerRef, { version: SEED_VERSION, applied_at: serverTimestamp() });
 }
 
 export async function listPatients() {
@@ -439,6 +464,12 @@ export async function recomputeRisk(patientId, opts = {}) {
 }
 
 /* ===================== Firestore: HOSPITAL ===================== */
+// 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
+// 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
+// 미허용) 목록/구독에서는 필터링한다.
+const SEED_VERSION = 2;
+const SEED_MARKER_ID = '__seed__';
+
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).
 // 결정적 문서 ID(h1~h10)를 써서 추천/응급 릴레이 로그가 hospital_id로 교차 참조할 수 있게 한다.
 // 상태 행이 없는 h8·h10은 합리적 기본값(NICU 2병상, 당직의 재실)을 채운다.
@@ -454,22 +485,18 @@ const DEMO_HOSPITALS = [
   { id: 'h9', hospital_name: '부산대학교병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-240-7114', latitude: 35.1760, longitude: 129.0630, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true },
   { id: 'h10', hospital_name: '고신대학교복음병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-990-6114', latitude: 35.1040, longitude: 128.9990, is_regional_center: false, nicu_available_beds: 2, is_obgyn_on_call: true },
 ];
-// 최초 1회 부트스트랩: hospitals 컬렉션이 비어 있으면 데모 병원 시드 — 별도 관리자 권한 없이 일반 클라이언트 권한으로 동작
-export async function seedHospitalsIfEmpty() {
-  await authReady;
-  const snap = await getDocs(collection(db, 'hospitals'));
-  if (!snap.empty) return;
+async function writeHospitals() {
   await Promise.all(DEMO_HOSPITALS.map(({ id, ...h }) => setDoc(doc(db, 'hospitals', id), h)));
 }
 
 export async function listHospitals() {
   await authReady;
   const snap = await getDocs(collection(db, 'hospitals'));
-  return snap.docs.map(d => ({ hospital_id: d.id, ...d.data() }));
+  return snap.docs.filter(d => d.id !== SEED_MARKER_ID).map(d => ({ hospital_id: d.id, ...d.data() }));
 }
 export function watchHospitals(cb) {
   authReady.then(() => onSnapshot(collection(db, 'hospitals'), snap => {
-    cb(snap.docs.map(d => ({ hospital_id: d.id, ...d.data() })));
+    cb(snap.docs.filter(d => d.id !== SEED_MARKER_ID).map(d => ({ hospital_id: d.id, ...d.data() })));
   }));
 }
 // 좌표 → 주소 역지오코딩 (Nominatim/OpenStreetMap, API 키 불필요). 결과는 hospital 문서에 캐싱해
