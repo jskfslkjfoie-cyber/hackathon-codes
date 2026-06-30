@@ -385,6 +385,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--red)"></span>2_PATIENT_DISEASE — 기저질환 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>disease_id</th><th>patient_id</th><th>disease_name</th><th>severity</th><th>diagnosed_at</th></tr></thead>
+        <tbody id="guide-disease-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -487,6 +497,31 @@ function renderGuide(){
       <td>${esc(fmtDate(p.created_at))}</td>
       <td class="small muted">${esc(p.scenario||'')}</td>
     </tr>`).join('') || '<tr><td colspan="8" class="muted">시드 데이터를 불러오는 중...</td></tr>';
+  renderGuideDiseases();
+}
+
+// 2_PATIENT_DISEASE: 산모별 diseases 서브컬렉션을 모아 시트 컬럼 그대로 표로 보여준다.
+// (diseases는 collection-group 규칙 미허용이라 산모별 listDiseases로 조회한다.)
+async function renderGuideDiseases(){
+  const el=document.getElementById('guide-disease-rows');
+  if(!el) return;
+  const fmtDate=t=>t?.toDate ? t.toDate().toISOString().slice(0,10) : (t||'');
+  const sevLabel=code=>SEVERITY.find(s=>s.code===code)?.label || code;
+  const patients=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  const all=[];
+  for(const p of patients){
+    const ds=await listDiseases(p.patient_id);
+    ds.sort((a,b)=>String(a.disease_id).localeCompare(String(b.disease_id), undefined, {numeric:true}));
+    ds.forEach(d=>all.push({ patient_id:p.patient_id, ...d }));
+  }
+  el.innerHTML = all.map((d,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(d.patient_id)}</td>
+      <td><b>${esc(d.disease_name)}</b></td>
+      <td>${esc(sevLabel(d.severity))}</td>
+      <td>${esc(fmtDate(d.diagnosed_at))}</td>
+    </tr>`).join('') || '<tr><td colspan="5" class="muted">기저질환 시드 데이터가 없습니다.</td></tr>';
 }
 document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('click', ()=>{
   dashTab=b.dataset.dash;
