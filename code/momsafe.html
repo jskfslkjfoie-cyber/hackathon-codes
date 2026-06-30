@@ -425,6 +425,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--blue)"></span>6_HOSPITAL — 가상 병원 (10개소) <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>hospital_id</th><th>hospital_name</th><th>region_code</th><th>high_risk_delivery</th><th>nicu_available</th><th>emergency_phone</th><th>latitude</th><th>longitude</th><th>is_regional_center</th></tr></thead>
+        <tbody id="guide-hospital-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -492,7 +502,7 @@ const handledRequests = new Set();
 let activeModalReqId=null, timerHandle=null, audioCtx=null, sirenOsc=null, sirenInterval=null;
 
 watchPatients(list=>{ PATIENTS=list; if(role==='health') renderDash(); if(role==='ems') renderEmsBody(); if(role==='guide') renderGuide(); });
-watchHospitals(list=>{ HOSPITALS=list; if(!SELF_HOSP && list.length) SELF_HOSP=list[0].hospital_id; populateSelfHospPicker(); if(role==='health'&&dashTab==='infra') renderInfra(); if(role==='hosp') renderHosp(); });
+watchHospitals(list=>{ HOSPITALS=list; if(!SELF_HOSP && list.length) SELF_HOSP=list[0].hospital_id; populateSelfHospPicker(); if(role==='health'&&dashTab==='infra') renderInfra(); if(role==='hosp') renderHosp(); if(role==='guide') renderGuideHospitals(); });
 watchUnconfirmedDiaries(list=>{ UNCONFIRMED=list; document.getElementById('alert-count').textContent=list.length||''; if(role==='health'&&dashTab==='alerts') renderAlerts(); });
 watchEmergencyRequests(list=>{ REQUESTS=list; if(role==='hosp') { renderHosp(); checkIncoming(); } if(role==='ems'&&emsRequestId) renderEmsRelay(); });
 
@@ -528,6 +538,27 @@ function renderGuide(){
       <td class="small muted">${esc(p.scenario||'')}</td>
     </tr>`).join('') || '<tr><td colspan="8" class="muted">시드 데이터를 불러오는 중...</td></tr>';
   renderGuideDiseases();
+  renderGuideHospitals();
+}
+
+// 6_HOSPITAL: 전역 HOSPITALS(실시간)를 hospital_id 순으로 시트 컬럼 그대로 보여준다.
+function renderGuideHospitals(){
+  const el=document.getElementById('guide-hospital-rows');
+  if(!el) return;
+  const num=v=>+String(v).replace(/\D/g,'')||0;
+  const rows=[...HOSPITALS].sort((a,b)=>num(a.hospital_id)-num(b.hospital_id));
+  el.innerHTML = rows.map(h=>`
+    <tr>
+      <td>${esc(h.hospital_id)}</td>
+      <td><b>${esc(h.hospital_name)}</b></td>
+      <td class="mono">${esc(h.region_code)}</td>
+      <td>${h.high_risk_delivery?'TRUE':'FALSE'}</td>
+      <td>${h.nicu_available?'TRUE':'FALSE'}</td>
+      <td class="mono">${esc(h.emergency_phone)}</td>
+      <td>${esc(h.latitude)}</td>
+      <td>${esc(h.longitude)}</td>
+      <td>${h.is_regional_center?'<b style="color:var(--sys)">TRUE</b>':'FALSE'}</td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">병원 시드 데이터가 없습니다.</td></tr>';
 }
 
 // 2_PATIENT_DISEASE: 산모별 diseases 서브컬렉션을 모아 시트 컬럼 그대로 표로 보여준다.
