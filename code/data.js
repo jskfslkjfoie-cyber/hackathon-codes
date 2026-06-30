@@ -322,17 +322,19 @@ async function writeEmergencies() {
     patient_id: 'p1', current_risk_level: 'HIGH', request_status: 'ACCEPTED',
     profile_snapshot: { name: p1?.name, gestation_week: p1?.gestation_week, risk: p1?.risk },
     recommendations: await recsFor('p1'), current_rank: 2, accepted_hospital_id: 'h2', created_at: ts('2026-06-29T06:05:00'),
+    scenario: '케이스A — 전치태반 응급. 2순위 안동병원 수용 확정',
   });
-  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r1'), { hospital_id: 'h1', response_type: 'REJECT', priority_rank: 1, rejection_reason: 'NICU_SHORTAGE', responded_at: ts('2026-06-29T06:06:00') });
-  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r2'), { hospital_id: 'h2', response_type: 'ACCEPT', priority_rank: 2, rejection_reason: null, responded_at: ts('2026-06-29T06:08:00') });
+  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r1'), { hospital_id: 'h1', response_type: 'REJECT', priority_rank: 1, rejection_reason: 'NICU_SHORTAGE', responded_at: ts('2026-06-29T06:06:00'), scenario: '케이스A — 1순위 안동병원 NICU 만실 거절' });
+  await setDoc(doc(db, 'emergencyRequests', 'er1', 'responses', 'r2'), { hospital_id: 'h2', response_type: 'ACCEPT', priority_rank: 2, rejection_reason: null, responded_at: ts('2026-06-29T06:08:00'), scenario: '케이스A — 2순위 경북대병원 수용 확정' });
   // req2 — 케이스B(이미래): 대구 체류 중 응급 → 영남대(1순위) 즉시 수용
   const p2 = await getPatient('p2');
   await setDoc(doc(db, 'emergencyRequests', 'er2'), {
     patient_id: 'p2', current_risk_level: 'HIGH', request_status: 'ACCEPTED',
     profile_snapshot: { name: p2?.name, gestation_week: p2?.gestation_week, risk: p2?.risk },
     recommendations: await recsFor('p2'), current_rank: 1, accepted_hospital_id: 'h4', created_at: ts('2026-06-29T07:05:00'),
+    scenario: '케이스B — 대구 체류 중 임신중독증 응급. 1순위 영남대병원 수용',
   });
-  await setDoc(doc(db, 'emergencyRequests', 'er2', 'responses', 'r1'), { hospital_id: 'h4', response_type: 'ACCEPT', priority_rank: 1, rejection_reason: null, responded_at: ts('2026-06-29T07:06:00') });
+  await setDoc(doc(db, 'emergencyRequests', 'er2', 'responses', 'r1'), { hospital_id: 'h4', response_type: 'ACCEPT', priority_rank: 1, rejection_reason: null, responded_at: ts('2026-06-29T07:06:00'), scenario: '케이스B — 1순위 영남대병원 즉시 수용' });
 }
 
 // 컬렉션 내 모든 문서(+지정 서브컬렉션)를 삭제. Firestore 클라이언트는 서브컬렉션을 자동
@@ -492,7 +494,7 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
-const SEED_VERSION = 7;
+const SEED_VERSION = 8;
 const SEED_MARKER_ID = '__seed__';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).
@@ -627,4 +629,11 @@ export function watchResponses(requestId, cb) {
   authReady.then(() => onSnapshot(query(collection(db, 'emergencyRequests', requestId, 'responses'), orderBy('responded_at', 'asc')), snap => {
     cb(snap.docs.map(d => ({ response_id: d.id, ...d.data() })));
   }));
+}
+
+// 10_EMERGENCY: 데모 가이드에서 응급 릴레이 응답을 일괄 조회하기 위한 함수.
+export async function listResponses(requestId) {
+  await authReady;
+  const snap = await getDocs(query(collection(db, 'emergencyRequests', requestId, 'responses'), orderBy('responded_at', 'asc')));
+  return snap.docs.map(d => ({ response_doc_id: d.id, ...d.data() }));
 }
