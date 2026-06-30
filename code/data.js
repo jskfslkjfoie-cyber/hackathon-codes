@@ -491,26 +491,29 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
-const SEED_VERSION = 4;
+const SEED_VERSION = 5;
 const SEED_MARKER_ID = '__seed__';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).
 // 결정적 문서 ID(h1~h10)를 써서 추천/응급 릴레이 로그가 hospital_id로 교차 참조할 수 있게 한다.
-// 상태 행이 없는 h8·h10은 합리적 기본값(NICU 2병상, 당직의 재실)을 채운다.
+// 상태 행이 없는 h8·h10은 합리적 기본값(NICU 2병상, 당직의 재실)을 채우고 status 메타는 생략한다.
+// status_id/status_updated_at/scenario_note는 7_HOSPITAL_STATUS를 병원 문서에 직접 보관한 값
+// (hospitals 하위 서브컬렉션은 보안규칙 미허용이라 문서 필드로 둔다).
 const DEMO_HOSPITALS = [
-  { id: 'h1', hospital_name: '안동병원', region_code: '4713000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '054-840-1000', latitude: 36.5720, longitude: 128.7320, is_regional_center: true, nicu_available_beds: 0, is_obgyn_on_call: false },
-  { id: 'h2', hospital_name: '경북대학교병원', region_code: '4711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-5114', latitude: 35.8685, longitude: 128.6060, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true },
-  { id: 'h3', hospital_name: '칠곡경북대학교병원', region_code: '4719000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-2114', latitude: 35.9845, longitude: 128.4780, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: true },
-  { id: 'h4', hospital_name: '영남대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-620-3114', latitude: 35.8600, longitude: 128.6220, is_regional_center: true, nicu_available_beds: 2, is_obgyn_on_call: true },
-  { id: 'h5', hospital_name: '대구가톨릭대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-650-4114', latitude: 35.8714, longitude: 128.6070, is_regional_center: false, nicu_available_beds: 0, is_obgyn_on_call: true },
-  { id: 'h6', hospital_name: '계명대학교동산병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: false, emergency_phone: '053-250-7114', latitude: 35.8580, longitude: 128.4980, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: false },
-  { id: 'h7', hospital_name: '분당서울대학교병원', region_code: '4113000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '031-787-7114', latitude: 37.3490, longitude: 127.1230, is_regional_center: true, nicu_available_beds: 4, is_obgyn_on_call: true },
+  { id: 'h1', hospital_name: '안동병원', region_code: '4713000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '054-840-1000', latitude: 36.5720, longitude: 128.7320, is_regional_center: true, nicu_available_beds: 0, is_obgyn_on_call: false, status_id: 1, status_updated_at: '2026-06-29T06:10:00', scenario_note: '1순위 병원 — NICU 만실 + 당직의 부재 → 거절' },
+  { id: 'h2', hospital_name: '경북대학교병원', region_code: '4711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-5114', latitude: 35.8685, longitude: 128.6060, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true, status_id: 2, status_updated_at: '2026-06-29T06:10:00', scenario_note: '2순위 병원 — 수용 가능 → 수용 확정' },
+  { id: 'h3', hospital_name: '칠곡경북대학교병원', region_code: '4719000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-200-2114', latitude: 35.9845, longitude: 128.4780, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: true, status_id: 3, status_updated_at: '2026-06-29T06:10:00', scenario_note: '3순위 병원 — 대기' },
+  { id: 'h4', hospital_name: '영남대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-620-3114', latitude: 35.8600, longitude: 128.6220, is_regional_center: true, nicu_available_beds: 2, is_obgyn_on_call: true, status_id: 4, status_updated_at: '2026-06-29T07:00:00', scenario_note: '케이스B 1순위 — 수용 가능' },
+  { id: 'h5', hospital_name: '대구가톨릭대학교병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '053-650-4114', latitude: 35.8714, longitude: 128.6070, is_regional_center: false, nicu_available_beds: 0, is_obgyn_on_call: true, status_id: 5, status_updated_at: '2026-06-29T07:00:00', scenario_note: '케이스B 2순위 — NICU 만실' },
+  { id: 'h6', hospital_name: '계명대학교동산병원', region_code: '2711000000', high_risk_delivery: true, nicu_available: false, emergency_phone: '053-250-7114', latitude: 35.8580, longitude: 128.4980, is_regional_center: false, nicu_available_beds: 1, is_obgyn_on_call: false, status_id: 6, status_updated_at: '2026-06-29T07:00:00', scenario_note: '케이스B 3순위 — 당직의 부재' },
+  { id: 'h7', hospital_name: '분당서울대학교병원', region_code: '4113000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '031-787-7114', latitude: 37.3490, longitude: 127.1230, is_regional_center: true, nicu_available_beds: 4, is_obgyn_on_call: true, status_id: 7, status_updated_at: '2026-06-29T09:00:00', scenario_note: '케이스C 1순위 — 수용 가능' },
   { id: 'h8', hospital_name: '차의과학대학교 분당차병원', region_code: '4113000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '031-780-5000', latitude: 37.3940, longitude: 127.1110, is_regional_center: false, nicu_available_beds: 2, is_obgyn_on_call: true },
-  { id: 'h9', hospital_name: '부산대학교병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-240-7114', latitude: 35.1760, longitude: 129.0630, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true },
+  { id: 'h9', hospital_name: '부산대학교병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-240-7114', latitude: 35.1760, longitude: 129.0630, is_regional_center: true, nicu_available_beds: 3, is_obgyn_on_call: true, status_id: 8, status_updated_at: '2026-06-29T10:00:00', scenario_note: '케이스D 1순위 — 수용 가능' },
   { id: 'h10', hospital_name: '고신대학교복음병원', region_code: '2611000000', high_risk_delivery: true, nicu_available: true, emergency_phone: '051-990-6114', latitude: 35.1040, longitude: 128.9990, is_regional_center: false, nicu_available_beds: 2, is_obgyn_on_call: true },
 ];
 async function writeHospitals() {
-  await Promise.all(DEMO_HOSPITALS.map(({ id, ...h }) => setDoc(doc(db, 'hospitals', id), h)));
+  await Promise.all(DEMO_HOSPITALS.map(({ id, status_updated_at, ...h }) =>
+    setDoc(doc(db, 'hospitals', id), status_updated_at ? { ...h, status_updated_at: ts(status_updated_at) } : h)));
 }
 
 export async function listHospitals() {

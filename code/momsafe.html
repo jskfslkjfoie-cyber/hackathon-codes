@@ -435,6 +435,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--sys)"></span>7_HOSPITAL_STATUS — 실시간 가용병상 현황 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>status_id</th><th>hospital_id</th><th>nicu_available_beds</th><th>is_obgyn_on_call</th><th>updated_at</th><th>scenario_note</th></tr></thead>
+        <tbody id="guide-status-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -559,6 +569,24 @@ function renderGuideHospitals(){
       <td>${esc(h.longitude)}</td>
       <td>${h.is_regional_center?'<b style="color:var(--sys)">TRUE</b>':'FALSE'}</td>
     </tr>`).join('') || '<tr><td colspan="9" class="muted">병원 시드 데이터가 없습니다.</td></tr>';
+  renderGuideHospitalStatus();
+}
+
+// 7_HOSPITAL_STATUS: 병원 문서에 보관한 status 메타(status_id 보유 병원만)를 status_id 순으로 보여준다.
+function renderGuideHospitalStatus(){
+  const el=document.getElementById('guide-status-rows');
+  if(!el) return;
+  const fmtDateTime=t=>{ if(!t?.toDate) return t||''; const d=t.toDate(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const rows=HOSPITALS.filter(h=>h.status_id!=null).sort((a,b)=>a.status_id-b.status_id);
+  el.innerHTML = rows.map(h=>`
+    <tr>
+      <td>${esc(h.status_id)}</td>
+      <td>${esc(h.hospital_id)}</td>
+      <td>${h.nicu_available_beds===0?'<b style="color:var(--red)">0</b>':esc(h.nicu_available_beds)}</td>
+      <td>${h.is_obgyn_on_call?'TRUE':'<b style="color:var(--red)">FALSE</b>'}</td>
+      <td>${esc(fmtDateTime(h.status_updated_at))}</td>
+      <td class="small muted">${esc(h.scenario_note)}</td>
+    </tr>`).join('') || '<tr><td colspan="6" class="muted">병상 현황 시드 데이터가 없습니다.</td></tr>';
 }
 
 // 2_PATIENT_DISEASE: 산모별 diseases 서브컬렉션을 모아 시트 컬럼 그대로 표로 보여준다.
