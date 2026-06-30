@@ -181,6 +181,9 @@ const DEMO_PATIENTS = [
     gestation_week: 29, multiple_pregnancy: false, created_at: '2026-05-01',
     scenario: '케이스A — 전치태반/분만취약지/응급',
     location: { location_type: 'HOME', address: '경북 의성군 의성읍 의성로 100', region_code: '4720000000', region_grade: 'HIGH_RISK', latitude: 36.3525, longitude: 128.6970, stay_until: null },
+    locations: [
+      { location_id: 1, location_type: 'HOME', address: '경북 의성군 의성읍 의성로 100', region_code: '4720000000', region_grade: 'HIGH_RISK', latitude: 36.3525, longitude: 128.6970, stay_until: null },
+    ],
     risk: { clinical_score: 40, infra_score: 8, gestation_weight: 0, risk_level: 'HIGH', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T06:00:00' },
     diseases: [{ disease_name: '전치태반', severity: 'GRADE_3', diagnosed_at: '2026-05-10' }],
     vitals: [
@@ -203,6 +206,10 @@ const DEMO_PATIENTS = [
     gestation_week: 24, multiple_pregnancy: false, created_at: '2026-06-01',
     scenario: '케이스B — 임신중독증/지역이탈',
     location: { location_type: 'TEMPORARY', address: '대구광역시 수성구 달구벌대로 500', region_code: '2720010300', region_grade: 'MEDIUM_RISK', latitude: 35.8714, longitude: 128.6014, stay_until: '2026-07-10' },
+    locations: [
+      { location_id: 2, location_type: 'HOME', address: '서울특별시 강남구 테헤란로 200', region_code: '1168010800', region_grade: 'LOW_RISK', latitude: 37.5042, longitude: 127.0490, stay_until: null },
+      { location_id: 3, location_type: 'TEMPORARY', address: '대구광역시 수성구 달구벌대로 500', region_code: '2720010300', region_grade: 'MEDIUM_RISK', latitude: 35.8714, longitude: 128.6014, stay_until: '2026-07-10' },
+    ],
     risk: { clinical_score: 40, infra_score: 6, gestation_weight: 14, risk_level: 'HIGH', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T07:00:00' },
     diseases: [
       { disease_name: '임신성 고혈압성 질환', severity: 'GRADE_3', diagnosed_at: '2026-06-05' },
@@ -226,6 +233,9 @@ const DEMO_PATIENTS = [
     gestation_week: 32, multiple_pregnancy: false, created_at: '2026-04-15',
     scenario: '케이스C — 증상일기/예비위험도',
     location: { location_type: 'HOME', address: '경기도 성남시 분당구 판교로 300', region_code: '4113510900', region_grade: 'LOW_RISK', latitude: 37.3943, longitude: 127.1109, stay_until: null },
+    locations: [
+      { location_id: 4, location_type: 'HOME', address: '경기도 성남시 분당구 판교로 300', region_code: '4113510900', region_grade: 'LOW_RISK', latitude: 37.3943, longitude: 127.1109, stay_until: null },
+    ],
     risk: { clinical_score: 28, infra_score: 4, gestation_weight: 0, risk_level: 'MEDIUM', pre_risk_score: 75, pre_risk_level: 'HIGH', risk_track: 'PRELIMINARY', assessed_at: '2026-06-28T21:30:00' },
     diseases: [{ disease_name: '임신성 당뇨병 (인슐린 치료 안하는 경우)', severity: 'GRADE_2', diagnosed_at: '2026-04-20' }],
     vitals: [
@@ -247,6 +257,9 @@ const DEMO_PATIENTS = [
     gestation_week: 20, multiple_pregnancy: true, created_at: '2026-06-15',
     scenario: '추가 케이스 — 쌍둥이/고령',
     location: { location_type: 'HOME', address: '부산광역시 해운대구 센텀중앙로 400', region_code: '2635010100', region_grade: 'LOW_RISK', latitude: 35.1731, longitude: 129.1325, stay_until: null },
+    locations: [
+      { location_id: 5, location_type: 'HOME', address: '부산광역시 해운대구 센텀중앙로 400', region_code: '2635010100', region_grade: 'LOW_RISK', latitude: 35.1731, longitude: 129.1325, stay_until: null },
+    ],
     risk: { clinical_score: 24, infra_score: 4, gestation_weight: 14, risk_level: 'MEDIUM', pre_risk_score: 0, pre_risk_level: null, risk_track: 'CLINICAL', assessed_at: '2026-06-29T10:00:00' },
     diseases: [
       { disease_name: '다태임신', severity: 'GRADE_2', diagnosed_at: '2026-06-20' },
@@ -288,6 +301,8 @@ async function writePatients() {
       blood_sugar: v.blood_glucose, weight_kg: v.weight_kg, height_cm: v.height_cm, bmi: v.bmi, measured_at: ts(v.measured_at),
     })));
     await Promise.all(p.diary.map((e, i) => setDoc(doc(db, 'patients', p.id, 'diary', `e${i}`), { ...e, created_at: ts(e.created_at) })));
+    // 체류지 이력(이동형 프로필) — 시트 3_LOCATION 전체를 보존. patient.location(현재값)은 별도로 둔다.
+    await Promise.all((p.locations || []).map(l => setDoc(doc(db, 'patients', p.id, 'locations', `loc${l.location_id}`), { ...l, stay_until: l.stay_until || null })));
   }
 }
 
@@ -339,7 +354,7 @@ export async function ensureSeedData() {
   const marker = await getDoc(markerRef);
   if (marker.exists() && (marker.data().version || 0) >= SEED_VERSION) return;
   await clearAllDocs('emergencyRequests', ['responses', 'assessment']);
-  await clearAllDocs('patients', ['diseases', 'vitals', 'diary', 'notes']);
+  await clearAllDocs('patients', ['diseases', 'vitals', 'diary', 'notes', 'locations']);
   await clearAllDocs('hospitals');
   await writeHospitals();
   await writePatients();
@@ -369,6 +384,13 @@ export async function listDiseases(patientId) {
   await authReady;
   const snap = await getDocs(collection(db, 'patients', patientId, 'diseases'));
   return snap.docs.map(d => ({ disease_id: d.id, ...d.data() }));
+}
+
+// 체류지 이력(3_LOCATION) — 데모 가이드에서 시트 원본을 보여주기 위한 조회.
+export async function listLocations(patientId) {
+  await authReady;
+  const snap = await getDocs(collection(db, 'patients', patientId, 'locations'));
+  return snap.docs.map(d => ({ location_doc_id: d.id, ...d.data() }));
 }
 
 /* ---- VITAL_SIGN ---- */
@@ -467,7 +489,7 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
-const SEED_VERSION = 2;
+const SEED_VERSION = 3;
 const SEED_MARKER_ID = '__seed__';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).

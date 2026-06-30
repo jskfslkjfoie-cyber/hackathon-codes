@@ -395,6 +395,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--blue)"></span>3_LOCATION — 체류지 정보 (이동형 프로필 포함) <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>location_id</th><th>patient_id</th><th>location_type</th><th>address</th><th>region_code</th><th>region_grade</th><th>latitude</th><th>longitude</th><th>stay_until</th></tr></thead>
+        <tbody id="guide-location-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -432,7 +442,7 @@
 <script type="module">
 import {
   DISEASES, SEVERITY, ACUTE_SIGNALS, CONSCIOUSNESS_LEVELS, REJECTION_REASONS, grade,
-  watchPatients, getPatient, addDisease, listDiseases, listVitals, addHealthNote, listHealthNotes,
+  watchPatients, getPatient, addDisease, listDiseases, listLocations, listVitals, addHealthNote, listHealthNotes,
   addSymptomDiary, listDiaries, confirmDiaryVisit, watchUnconfirmedDiaries,
   watchHospitals, updateHospitalStatus, hospitalPriority, saveRecommendations,
   createEmergencyRequest, addEmsAssessment, watchEmergencyRequests, watchEmergencyRequest,
@@ -522,6 +532,32 @@ async function renderGuideDiseases(){
       <td>${esc(sevLabel(d.severity))}</td>
       <td>${esc(fmtDate(d.diagnosed_at))}</td>
     </tr>`).join('') || '<tr><td colspan="5" class="muted">기저질환 시드 데이터가 없습니다.</td></tr>';
+  renderGuideLocations();
+}
+
+// 3_LOCATION: 산모별 locations 서브컬렉션(체류지 이력)을 모아 시트 컬럼 그대로 표로 보여준다.
+async function renderGuideLocations(){
+  const el=document.getElementById('guide-location-rows');
+  if(!el) return;
+  const patients=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  const all=[];
+  for(const p of patients){
+    const ls=await listLocations(p.patient_id);
+    ls.forEach(l=>all.push({ patient_id:p.patient_id, ...l }));
+  }
+  all.sort((a,b)=>String(a.location_id).localeCompare(String(b.location_id), undefined, {numeric:true}));
+  el.innerHTML = all.map(l=>`
+    <tr>
+      <td>${esc(l.location_id)}</td>
+      <td>${esc(l.patient_id)}</td>
+      <td>${esc(l.location_type)}</td>
+      <td>${esc(l.address)}</td>
+      <td class="mono">${esc(l.region_code)}</td>
+      <td>${esc(l.region_grade)}</td>
+      <td>${esc(l.latitude)}</td>
+      <td>${esc(l.longitude)}</td>
+      <td>${esc(l.stay_until||'')}</td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">체류지 시드 데이터가 없습니다.</td></tr>';
 }
 document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('click', ()=>{
   dashTab=b.dataset.dash;
