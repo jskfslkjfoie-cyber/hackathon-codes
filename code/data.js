@@ -196,9 +196,9 @@ const DEMO_PATIENTS = [
       { diary_id: 4, content: '배가 살짝 당기는 느낌이에요', llm_summary: '복부 불편감. 전치태반 환자 — 출혈 여부 추가 확인 필요', detected_signals: '복부불편', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-26T20:00:00' },
     ],
     recommendations: [
-      { hospital_id: 'h1', priority_rank: 1, distance_km: 42.3, eta_minutes: 38 },
-      { hospital_id: 'h2', priority_rank: 2, distance_km: 98.7, eta_minutes: 82 },
-      { hospital_id: 'h3', priority_rank: 3, distance_km: 85.2, eta_minutes: 70 },
+      { hospital_id: 'h1', priority_rank: 1, distance_km: 42.3, eta_minutes: 38, calculated_at: '2026-06-29T06:00:00' },
+      { hospital_id: 'h2', priority_rank: 2, distance_km: 98.7, eta_minutes: 82, calculated_at: '2026-06-29T06:00:00' },
+      { hospital_id: 'h3', priority_rank: 3, distance_km: 85.2, eta_minutes: 70, calculated_at: '2026-06-29T06:00:00' },
     ],
   },
   {
@@ -223,9 +223,9 @@ const DEMO_PATIENTS = [
       { diary_id: 5, content: '머리가 자주 아파요. 대구 친정에 왔는데 좀 쉬고 있어요', llm_summary: '두통 반복. 임신성 고혈압 환자 — 즉각 주의 필요', detected_signals: '두통', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-27T19:00:00' },
     ],
     recommendations: [
-      { hospital_id: 'h4', priority_rank: 1, distance_km: 3.2, eta_minutes: 8 },
-      { hospital_id: 'h5', priority_rank: 2, distance_km: 4.1, eta_minutes: 10 },
-      { hospital_id: 'h6', priority_rank: 3, distance_km: 7.8, eta_minutes: 18 },
+      { hospital_id: 'h4', priority_rank: 1, distance_km: 3.2, eta_minutes: 8, calculated_at: '2026-06-29T07:00:00' },
+      { hospital_id: 'h5', priority_rank: 2, distance_km: 4.1, eta_minutes: 10, calculated_at: '2026-06-29T07:00:00' },
+      { hospital_id: 'h6', priority_rank: 3, distance_km: 7.8, eta_minutes: 18, calculated_at: '2026-06-29T07:00:00' },
     ],
   },
   {
@@ -248,8 +248,8 @@ const DEMO_PATIENTS = [
       { diary_id: 3, content: '두통이 심해지고 눈이 침침해요. 발도 많이 부었어요', llm_summary: '두통+시야장애+부종 복합 감지. 임신중독증 고위험 신호', detected_signals: '두통,시야장애,부종', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-28T21:30:00' },
     ],
     recommendations: [
-      { hospital_id: 'h7', priority_rank: 1, distance_km: 2.1, eta_minutes: 6 },
-      { hospital_id: 'h8', priority_rank: 2, distance_km: 0.8, eta_minutes: 3 },
+      { hospital_id: 'h7', priority_rank: 1, distance_km: 2.1, eta_minutes: 6, calculated_at: '2026-06-29T09:00:00' },
+      { hospital_id: 'h8', priority_rank: 2, distance_km: 0.8, eta_minutes: 3, calculated_at: '2026-06-29T09:00:00' },
     ],
   },
   {
@@ -270,8 +270,8 @@ const DEMO_PATIENTS = [
     ],
     diary: [],
     recommendations: [
-      { hospital_id: 'h9', priority_rank: 1, distance_km: 5.4, eta_minutes: 12 },
-      { hospital_id: 'h10', priority_rank: 2, distance_km: 8.9, eta_minutes: 20 },
+      { hospital_id: 'h9', priority_rank: 1, distance_km: 5.4, eta_minutes: 12, calculated_at: '2026-06-29T10:00:00' },
+      { hospital_id: 'h10', priority_rank: 2, distance_km: 8.9, eta_minutes: 20, calculated_at: '2026-06-29T10:00:00' },
     ],
   },
 ];
@@ -293,6 +293,7 @@ async function writePatients() {
       hospital_recommendation: p.recommendations.map(r => ({
         hospital_id: r.hospital_id, hospital_name: hospName(r.hospital_id), priority_rank: r.priority_rank,
         distance_km: r.distance_km, eta_minutes: r.eta_minutes, nicu_available_beds: hospBeds(r.hospital_id),
+        calculated_at: ts(r.calculated_at),
       })),
     });
     await Promise.all(p.diseases.map((d, i) => setDoc(doc(db, 'patients', p.id, 'diseases', `d${i}`), { disease_name: d.disease_name, severity: d.severity, diagnosed_at: ts(d.diagnosed_at) })));
@@ -491,7 +492,7 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
-const SEED_VERSION = 5;
+const SEED_VERSION = 6;
 const SEED_MARKER_ID = '__seed__';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).

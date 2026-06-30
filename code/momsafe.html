@@ -445,6 +445,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--sys)"></span>8_HOSPITAL_RECOMMENDATION — 병원 우선순위 추천 결과 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>recommendation_id</th><th>patient_id</th><th>hospital_id</th><th>priority_rank</th><th>distance_km</th><th>eta_minutes</th><th>calculated_at</th></tr></thead>
+        <tbody id="guide-recommendation-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -549,6 +559,28 @@ function renderGuide(){
     </tr>`).join('') || '<tr><td colspan="8" class="muted">시드 데이터를 불러오는 중...</td></tr>';
   renderGuideDiseases();
   renderGuideHospitals();
+  renderGuideRecommendations();
+}
+
+// 8_HOSPITAL_RECOMMENDATION: 산모 문서의 hospital_recommendation을 산모 순서로 펼쳐
+// 시트 컬럼 그대로(전역 recommendation_id 1..N 부여) 보여준다.
+function renderGuideRecommendations(){
+  const el=document.getElementById('guide-recommendation-rows');
+  if(!el) return;
+  const fmtDateTime=t=>{ if(!t?.toDate) return t||''; const d=t.toDate(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const patients=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  const all=[];
+  patients.forEach(p=>(p.hospital_recommendation||[]).forEach(r=>all.push({ patient_id:p.patient_id, ...r })));
+  el.innerHTML = all.map((r,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(r.patient_id)}</td>
+      <td>${esc(r.hospital_id)}</td>
+      <td>${esc(r.priority_rank)}</td>
+      <td>${esc(r.distance_km)}</td>
+      <td>${esc(r.eta_minutes)}</td>
+      <td>${esc(fmtDateTime(r.calculated_at))}</td>
+    </tr>`).join('') || '<tr><td colspan="7" class="muted">추천 시드 데이터가 없습니다.</td></tr>';
 }
 
 // 6_HOSPITAL: 전역 HOSPITALS(실시간)를 hospital_id 순으로 시트 컬럼 그대로 보여준다.
