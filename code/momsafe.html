@@ -405,6 +405,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--amber)"></span>4_VITAL_SIGN — 생체정보 측정 이력 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>vital_id</th><th>patient_id</th><th>systolic_bp</th><th>diastolic_bp</th><th>blood_glucose</th><th>weight_kg</th><th>height_cm</th><th>bmi</th><th>measured_at</th></tr></thead>
+        <tbody id="guide-vital-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -558,6 +568,35 @@ async function renderGuideLocations(){
       <td>${esc(l.longitude)}</td>
       <td>${esc(l.stay_until||'')}</td>
     </tr>`).join('') || '<tr><td colspan="9" class="muted">체류지 시드 데이터가 없습니다.</td></tr>';
+  renderGuideVitals();
+}
+
+// 4_VITAL_SIGN: 산모별 vitals 서브컬렉션을 측정시각 오름차순으로 모아 시트 컬럼 그대로 보여준다.
+// 안전 기준 초과(수축기>140 / 이완기>90)는 시트처럼 빨간 굵게 강조한다.
+async function renderGuideVitals(){
+  const el=document.getElementById('guide-vital-rows');
+  if(!el) return;
+  const fmtDateTime=t=>{ if(!t?.toDate) return t||''; const d=t.toDate(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const hi=(v,limit)=> v>limit ? `<b style="color:var(--red)">${esc(v)}</b>` : esc(v);
+  const patients=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  const all=[];
+  for(const p of patients){
+    const vs=await listVitals(p.patient_id);
+    vs.sort((a,b)=>(a.measured_at?.toMillis?.()||0)-(b.measured_at?.toMillis?.()||0));
+    vs.forEach(v=>all.push({ patient_id:p.patient_id, ...v }));
+  }
+  el.innerHTML = all.map((v,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${esc(v.patient_id)}</td>
+      <td>${hi(v.systolic_bp,140)}</td>
+      <td>${hi(v.diastolic_bp,90)}</td>
+      <td>${esc(v.blood_glucose)}</td>
+      <td>${esc(v.weight_kg)}</td>
+      <td>${esc(v.height_cm)}</td>
+      <td>${esc(v.bmi)}</td>
+      <td>${esc(fmtDateTime(v.measured_at))}</td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">생체정보 시드 데이터가 없습니다.</td></tr>';
 }
 document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('click', ()=>{
   dashTab=b.dataset.dash;
