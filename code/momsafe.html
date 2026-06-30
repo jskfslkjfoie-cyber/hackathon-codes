@@ -375,6 +375,16 @@
         </tbody>
       </table>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--health)"></span>1_PATIENT — 산모 기본 정보 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>patient_id</th><th>name</th><th>phone_number</th><th>expected_delivery_date</th><th>gestation_week</th><th>multiple_pregnancy</th><th>created_at</th><th>scenario</th></tr></thead>
+        <tbody id="guide-patient-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -441,7 +451,7 @@ let SELF_HOSP=null;
 const handledRequests = new Set();
 let activeModalReqId=null, timerHandle=null, audioCtx=null, sirenOsc=null, sirenInterval=null;
 
-watchPatients(list=>{ PATIENTS=list; if(role==='health') renderDash(); if(role==='ems') renderEmsBody(); });
+watchPatients(list=>{ PATIENTS=list; if(role==='health') renderDash(); if(role==='ems') renderEmsBody(); if(role==='guide') renderGuide(); });
 watchHospitals(list=>{ HOSPITALS=list; if(!SELF_HOSP && list.length) SELF_HOSP=list[0].hospital_id; populateSelfHospPicker(); if(role==='health'&&dashTab==='infra') renderInfra(); if(role==='hosp') renderHosp(); });
 watchUnconfirmedDiaries(list=>{ UNCONFIRMED=list; document.getElementById('alert-count').textContent=list.length||''; if(role==='health'&&dashTab==='alerts') renderAlerts(); });
 watchEmergencyRequests(list=>{ REQUESTS=list; if(role==='hosp') { renderHosp(); checkIncoming(); } if(role==='ems'&&emsRequestId) renderEmsRelay(); });
@@ -456,7 +466,27 @@ function setRole(r){
   if(r==='health'){ if(dashTab==='list') renderDash(); else if(dashTab==='alerts') renderAlerts(); else renderInfra(); }
   if(r==='ems') renderEmsBody();
   if(r==='hosp') renderHosp();
+  if(r==='guide') renderGuide();
   window.scrollTo(0,0);
+}
+
+// 데모 가이드: 시드된 1_PATIENT 원본 데이터를 시트 컬럼 그대로(실시간 Firestore) 표로 보여준다.
+function renderGuide(){
+  const el=document.getElementById('guide-patient-rows');
+  if(!el) return;
+  const fmtDate=t=>t?.toDate ? t.toDate().toISOString().slice(0,10) : (t||'');
+  const rows=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  el.innerHTML = rows.map(p=>`
+    <tr>
+      <td>${esc(p.patient_id)}</td>
+      <td><b>${esc(p.name)}</b></td>
+      <td class="mono">${esc(p.phone_number)}</td>
+      <td>${esc(p.expected_delivery_date)}</td>
+      <td>${esc(p.gestation_week)}</td>
+      <td>${p.multiple_pregnancy?'TRUE':'FALSE'}</td>
+      <td>${esc(fmtDate(p.created_at))}</td>
+      <td class="small muted">${esc(p.scenario||'')}</td>
+    </tr>`).join('') || '<tr><td colspan="8" class="muted">시드 데이터를 불러오는 중...</td></tr>';
 }
 document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('click', ()=>{
   dashTab=b.dataset.dash;
