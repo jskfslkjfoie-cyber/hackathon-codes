@@ -193,7 +193,7 @@ const DEMO_PATIENTS = [
       { systolic_bp: 155, diastolic_bp: 98, blood_glucose: 115, weight_kg: 76.5, height_cm: 163, bmi: 28.8, measured_at: '2026-06-29T06:00:00' },
     ],
     diary: [
-      { content: '배가 살짝 당기는 느낌이에요', llm_summary: '복부 불편감. 전치태반 환자 — 출혈 여부 추가 확인 필요', detected_signals: '복부불편', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-26T20:00:00' },
+      { diary_id: 4, content: '배가 살짝 당기는 느낌이에요', llm_summary: '복부 불편감. 전치태반 환자 — 출혈 여부 추가 확인 필요', detected_signals: '복부불편', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-26T20:00:00' },
     ],
     recommendations: [
       { hospital_id: 'h1', priority_rank: 1, distance_km: 42.3, eta_minutes: 38 },
@@ -220,7 +220,7 @@ const DEMO_PATIENTS = [
       { systolic_bp: 150, diastolic_bp: 96, blood_glucose: 105, weight_kg: 66, height_cm: 161, bmi: 25.5, measured_at: '2026-06-28T08:00:00' },
     ],
     diary: [
-      { content: '머리가 자주 아파요. 대구 친정에 왔는데 좀 쉬고 있어요', llm_summary: '두통 반복. 임신성 고혈압 환자 — 즉각 주의 필요', detected_signals: '두통', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-27T19:00:00' },
+      { diary_id: 5, content: '머리가 자주 아파요. 대구 친정에 왔는데 좀 쉬고 있어요', llm_summary: '두통 반복. 임신성 고혈압 환자 — 즉각 주의 필요', detected_signals: '두통', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-27T19:00:00' },
     ],
     recommendations: [
       { hospital_id: 'h4', priority_rank: 1, distance_km: 3.2, eta_minutes: 8 },
@@ -243,9 +243,9 @@ const DEMO_PATIENTS = [
       { systolic_bp: 115, diastolic_bp: 73, blood_glucose: 155, weight_kg: 69, height_cm: 158, bmi: 27.7, measured_at: '2026-06-28T09:00:00' },
     ],
     diary: [
-      { content: '요즘 소변이 자주 마렵고 약간 피곤해요', llm_summary: '일상적 임신 증상 범위. 특이 신호 없음', detected_signals: '없음', pre_risk_level: 'LOW', hospital_visit_recommended: false, visit_confirmed: false, created_at: '2026-06-20T21:00:00' },
-      { content: '두통이 좀 있고 발이 약간 부은 것 같아요', llm_summary: '두통+부종 감지. 임신중독증 초기 신호 가능성', detected_signals: '두통,부종', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-25T22:00:00' },
-      { content: '두통이 심해지고 눈이 침침해요. 발도 많이 부었어요', llm_summary: '두통+시야장애+부종 복합 감지. 임신중독증 고위험 신호', detected_signals: '두통,시야장애,부종', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-28T21:30:00' },
+      { diary_id: 1, content: '요즘 소변이 자주 마렵고 약간 피곤해요', llm_summary: '일상적 임신 증상 범위. 특이 신호 없음', detected_signals: '없음', pre_risk_level: 'LOW', hospital_visit_recommended: false, visit_confirmed: false, created_at: '2026-06-20T21:00:00' },
+      { diary_id: 2, content: '두통이 좀 있고 발이 약간 부은 것 같아요', llm_summary: '두통+부종 감지. 임신중독증 초기 신호 가능성', detected_signals: '두통,부종', pre_risk_level: 'MEDIUM', hospital_visit_recommended: true, visit_confirmed: false, created_at: '2026-06-25T22:00:00' },
+      { diary_id: 3, content: '두통이 심해지고 눈이 침침해요. 발도 많이 부었어요', llm_summary: '두통+시야장애+부종 복합 감지. 임신중독증 고위험 신호', detected_signals: '두통,시야장애,부종', pre_risk_level: 'HIGH', hospital_visit_recommended: true, visit_confirmed: true, created_at: '2026-06-28T21:30:00' },
     ],
     recommendations: [
       { hospital_id: 'h7', priority_rank: 1, distance_km: 2.1, eta_minutes: 6 },
@@ -300,7 +300,9 @@ async function writePatients() {
       systolic_bp: v.systolic_bp, diastolic_bp: v.diastolic_bp, blood_glucose: v.blood_glucose,
       blood_sugar: v.blood_glucose, weight_kg: v.weight_kg, height_cm: v.height_cm, bmi: v.bmi, measured_at: ts(v.measured_at),
     })));
-    await Promise.all(p.diary.map((e, i) => setDoc(doc(db, 'patients', p.id, 'diary', `e${i}`), { ...e, created_at: ts(e.created_at) })));
+    // diary_id는 문서 ID(e1~e5)로만 인코딩해 시트 순서를 보존하고, 저장 필드에는 넣지 않는다
+    // (listDiaries가 diary_id에 문서 ID를 채우므로 필드로 두면 충돌해 방문확인 동작이 깨진다).
+    await Promise.all(p.diary.map(({ diary_id, ...rest }) => setDoc(doc(db, 'patients', p.id, 'diary', `e${diary_id}`), { ...rest, created_at: ts(rest.created_at) })));
     // 체류지 이력(이동형 프로필) — 시트 3_LOCATION 전체를 보존. patient.location(현재값)은 별도로 둔다.
     await Promise.all((p.locations || []).map(l => setDoc(doc(db, 'patients', p.id, 'locations', `loc${l.location_id}`), { ...l, stay_until: l.stay_until || null })));
   }
@@ -489,7 +491,7 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 시드 데이터 버전. 이 값을 올리면 다음 로드 때 기존(구버전) 데이터를 지우고 새로 덮어쓴다.
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
-const SEED_VERSION = 3;
+const SEED_VERSION = 4;
 const SEED_MARKER_ID = '__seed__';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).

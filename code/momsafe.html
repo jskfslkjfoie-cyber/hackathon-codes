@@ -415,6 +415,16 @@
       </table>
       </div>
     </div>
+
+    <div class="panel">
+      <h3><span class="dot" style="background:var(--green)"></span>5_SYMPTOM_DIARY — 증상일기 + LLM 분류 결과 <span class="tag" style="margin-left:6px">실시간 시드 데이터</span></h3>
+      <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>diary_id</th><th>patient_id</th><th>content</th><th>llm_summary</th><th>detected_signals</th><th>pre_risk_level</th><th>hospital_visit_recommended</th><th>visit_confirmed</th><th>created_at</th></tr></thead>
+        <tbody id="guide-diary-rows"></tbody>
+      </table>
+      </div>
+    </div>
   </section>
 
   <footer>
@@ -597,6 +607,35 @@ async function renderGuideVitals(){
       <td>${esc(v.bmi)}</td>
       <td>${esc(fmtDateTime(v.measured_at))}</td>
     </tr>`).join('') || '<tr><td colspan="9" class="muted">생체정보 시드 데이터가 없습니다.</td></tr>';
+  renderGuideDiaries();
+}
+
+// 5_SYMPTOM_DIARY: 산모별 diary 서브컬렉션을 diary_id(문서 ID e1~e5) 순으로 모아 보여준다.
+async function renderGuideDiaries(){
+  const el=document.getElementById('guide-diary-rows');
+  if(!el) return;
+  const fmtDateTime=t=>{ if(!t?.toDate) return t||''; const d=t.toDate(); const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  const lvlColor={LOW:'var(--green)',MEDIUM:'var(--amber)',HIGH:'var(--red)',EMERGENCY:'var(--red)'};
+  const num=v=>+String(v).replace(/\D/g,'')||0;
+  const patients=[...PATIENTS].sort((a,b)=>String(a.patient_id).localeCompare(String(b.patient_id), undefined, {numeric:true}));
+  const all=[];
+  for(const p of patients){
+    const ds=await listDiaries(p.patient_id);
+    ds.forEach(d=>all.push({ patient_id:p.patient_id, ...d }));
+  }
+  all.sort((a,b)=>num(a.diary_id)-num(b.diary_id));
+  el.innerHTML = all.map(d=>`
+    <tr>
+      <td>${num(d.diary_id)}</td>
+      <td>${esc(d.patient_id)}</td>
+      <td>${esc(d.content)}</td>
+      <td class="small muted">${esc(d.llm_summary)}</td>
+      <td>${esc(d.detected_signals)}</td>
+      <td><b style="color:${lvlColor[d.pre_risk_level]||'var(--mut)'}">${esc(d.pre_risk_level)}</b></td>
+      <td>${d.hospital_visit_recommended?'TRUE':'FALSE'}</td>
+      <td>${d.visit_confirmed?'TRUE':'FALSE'}</td>
+      <td>${esc(fmtDateTime(d.created_at))}</td>
+    </tr>`).join('') || '<tr><td colspan="9" class="muted">증상일기 시드 데이터가 없습니다.</td></tr>';
 }
 document.querySelectorAll('.subnav [data-dash]').forEach(b=>b.addEventListener('click', ()=>{
   dashTab=b.dataset.dash;
