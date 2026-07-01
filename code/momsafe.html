@@ -246,22 +246,15 @@
 <div id="login-gate">
   <div class="login-card">
     <div class="login-brand"><div class="logo">🤰</div><b>고맘워요 <span style="font-weight:600;color:var(--mut);font-size:13px">관제 콘솔</span></b></div>
-    <div class="login-sub">공공 모자보건 안전망 미들웨어 · 담당자 로그인</div>
+    <div class="login-sub">공공 모자보건 안전망 미들웨어 · 통합 관제 로그인</div>
 
-    <div class="login-label">역할 선택</div>
-    <div class="role-pick" id="login-roles">
-      <button data-lr="health"><span class="ico">🏥</span>보건소</button>
-      <button data-lr="ems"><span class="ico">🚑</span>119 상황실·현장</button>
-      <button data-lr="hosp"><span class="ico">🛏️</span>병원</button>
-    </div>
-
-    <div class="login-label" style="margin-top:18px">계정</div>
-    <input id="login-id" placeholder="아이디" autocomplete="username">
-    <input id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+    <div class="login-label">계정</div>
+    <input id="login-id" placeholder="아이디" autocomplete="username" value="momsafe">
+    <input id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password" value="1234">
 
     <button class="login-btn" id="login-submit">로그인</button>
     <div class="login-err" id="login-err"></div>
-    <div class="login-hint">데모 계정 — 역할을 선택하면 아이디/비밀번호가 자동 입력됩니다.<br>보건소 <b>health</b> / 119 <b>ems</b> / 병원 <b>hosp</b> · 비밀번호 <b>1234</b></div>
+    <div class="login-hint">데모 계정 — 아이디 <b>momsafe</b> · 비밀번호 <b>1234</b><br>로그인 후 상단에서 <b>보건소·119·병원</b> 역할을 전환할 수 있습니다.</div>
   </div>
 </div>
 
@@ -613,35 +606,22 @@ watchEmergencyRequests(list=>{ REQUESTS=list; if(role==='hosp') { renderHosp(); 
 /* ===================== 역할 라우팅 ===================== */
 document.querySelectorAll('.roles button').forEach(b=>b.addEventListener('click', ()=>setRole(b.dataset.r)));
 
-/* ===================== 로그인 게이트 (유저플로우 1단계) ===================== */
-const DEMO_ACCOUNTS = { health:{id:'health',pw:'1234'}, ems:{id:'ems',pw:'1234'}, hosp:{id:'hosp',pw:'1234'} };
-const ROLE_LABEL = { health:'보건소', ems:'119', hosp:'병원' };
-let loginRole = 'health';
+/* ===================== 로그인 게이트 (단일 계정 → 로그인 후 상단 토글로 역할 전환) ===================== */
+const ACCOUNT = { id: 'momsafe', pw: '1234' };
 const gate = document.getElementById('login-gate');
-function selectLoginRole(r){
-  if(!DEMO_ACCOUNTS[r]) return; // 잘못된 역할 값 방어
-  loginRole = r;
-  document.querySelectorAll('#login-roles button').forEach(b=>b.classList.toggle('on', b.dataset.lr===r));
-  document.getElementById('login-id').value = DEMO_ACCOUNTS[r].id;
-  document.getElementById('login-pw').value = DEMO_ACCOUNTS[r].pw;
-  document.getElementById('login-err').textContent = '';
-}
-document.querySelectorAll('#login-roles button').forEach(b=>b.addEventListener('click', ()=>selectLoginRole(b.dataset.lr)));
 function doLogin(){
   const id=document.getElementById('login-id').value.trim(), pw=document.getElementById('login-pw').value.trim();
-  const acc=DEMO_ACCOUNTS[loginRole];
-  if(id!==acc.id || pw!==acc.pw){ document.getElementById('login-err').textContent='아이디 또는 비밀번호가 올바르지 않습니다. (데모 계정을 사용하세요)'; return; }
-  sessionStorage.setItem('momsafe_staff_role', loginRole);
+  if(id!==ACCOUNT.id || pw!==ACCOUNT.pw){ document.getElementById('login-err').textContent='아이디 또는 비밀번호가 올바르지 않습니다. (데모 계정: momsafe / 1234)'; return; }
+  sessionStorage.setItem('momsafe_logged_in', '1');
   gate.classList.add('off');
-  setRole(loginRole);
+  setRole('health'); // 기본 진입 역할 — 이후 상단 토글로 자유 전환
 }
 document.getElementById('login-submit').addEventListener('click', doLogin);
+document.getElementById('login-id').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('login-pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
-document.getElementById('logout-btn').addEventListener('click', ()=>{ sessionStorage.removeItem('momsafe_staff_role'); gate.classList.remove('off'); });
+document.getElementById('logout-btn').addEventListener('click', ()=>{ sessionStorage.removeItem('momsafe_logged_in'); gate.classList.remove('off'); });
 (function initGate(){
-  const saved = sessionStorage.getItem('momsafe_staff_role');
-  if(saved && DEMO_ACCOUNTS[saved]){ gate.classList.add('off'); setRole(saved); }
-  else { selectLoginRole('health'); }
+  if(sessionStorage.getItem('momsafe_logged_in')==='1'){ gate.classList.add('off'); setRole('health'); }
 })();
 
 function setRole(r){
