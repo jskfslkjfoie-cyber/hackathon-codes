@@ -579,6 +579,9 @@ import {
 // 도로명만 있고 번지가 없는 좌표는 텍스트 주소로 검색하면 네이버가 그 길 전체를 보여준다.
 // "위도, 경도" 형식으로 검색하면 네이버 자체 역지오코딩이 항상 정확한 지번 한 곳으로 매칭해준다.
 function naverMapUrl(lat, lng){ return `https://map.naver.com/p/search/${encodeURIComponent(lat + ', ' + lng)}`; }
+// 병원은 실명 기관이라 병원명으로 검색하면 네이버 지도가 실제 병원을 정확히 핀한다
+// (시드 좌표는 근사값이라 좌표 검색보다 이름 검색이 정확).
+function naverHospUrl(name){ return `https://map.naver.com/p/search/${encodeURIComponent(name)}`; }
 
 // 시드 버전이 바뀌면 기존 데이터를 자동으로 지우고 최신 시나리오 데이터로 덮어쓴다.
 ensureSeedData();
@@ -1064,7 +1067,12 @@ function renderInfra(){
   infraLayer.clearLayers();
   const pts=[];
   const hospMarkers={};
-  function addrLine(h){ return (h.address && h.address_v===2) ? `<a href="${naverMapUrl(h.latitude,h.longitude)}" target="_blank" rel="noopener" class="addr-link">📍 ${esc(h.address)}</a>` : `<span class="muted small">주소 조회 중...</span>`; }
+  // 링크는 항상 병원명으로 네이버 지도 검색(정확한 병원 위치). 라벨은 역지오코딩된 주소가
+  // 준비되면 표시하고, 아직이면 안내 문구를 보여준다.
+  function addrLine(h){
+    const label = (h.address && h.address_v===2) ? esc(h.address) : '네이버 지도에서 위치 보기';
+    return `<a href="${naverHospUrl(h.hospital_name)}" target="_blank" rel="noopener" class="addr-link">📍 ${label}</a>`;
+  }
   HOSPITALS.forEach(h=>{
     pts.push([h.latitude,h.longitude]);
     const marker=L.marker([h.latitude,h.longitude]).addTo(infraLayer)
