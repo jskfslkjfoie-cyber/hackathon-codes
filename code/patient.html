@@ -72,10 +72,11 @@
 
   <main id="app" class="flex-1 overflow-y-auto px-4 py-4 pb-24"></main>
 
-  <nav id="bottomnav" class="hidden flex-none grid grid-cols-4 border-t border-zinc-800 bg-[#0a0a0c]">
-    <button data-go="APP-008" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">🏠<br>홈</button>
-    <button data-go="APP-004" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">📝<br>증상일기</button>
-    <button data-go="APP-006" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">🏥<br>추천병원</button>
+  <nav id="bottomnav" class="hidden flex-none grid grid-cols-5 border-t border-zinc-800 bg-[#0a0a0c]">
+    <button data-go="APP-004" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">🏠<br>홈</button>
+    <button data-go="APP-005" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">📝<br>증상일기</button>
+    <button data-go="APP-003" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">📋<br>진료정보</button>
+    <button data-go="APP-006" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">📍<br>체류지</button>
     <button data-go="APP-007" class="navbtn py-2.5 text-center text-[11px] text-zinc-500">🔔<br>알림</button>
   </nav>
 
@@ -87,8 +88,8 @@
 
 <script type="module">
 import {
-  DISEASES, SEVERITY, ACUTE_SIGNALS, grade,
-  createPatient, getPatient, addDisease, listDiseases, addVital, listVitals,
+  DISEASES, DISEASE_AREAS, SEVERITY, ACUTE_SIGNALS, grade, bmiOf,
+  createPatient, getPatient, updatePatientBasics, addDisease, listDiseases, addVital, listVitals,
   updateLocation, addHealthNote, addSymptomDiary, listDiaries, confirmDiaryVisit,
   listHospitals, hospitalPriority, saveRecommendations,
 } from '/code/data.js';
@@ -120,7 +121,7 @@ async function boot() {
   bottomnav.classList.remove('hidden');
   fab.classList.remove('hidden');
   renderHeaderRisk();
-  render('APP-008');
+  render('APP-004');
 }
 
 function renderHeaderRisk() {
@@ -138,9 +139,9 @@ async function render(screen) {
   currentScreen = screen;
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('text-emerald-300', b.dataset.go === screen));
   document.querySelectorAll('.navbtn').forEach(b => b.classList.toggle('text-zinc-500', b.dataset.go !== screen));
-  const screens = { 'APP-001': screenRegister, 'APP-002': screenDiagnosis, 'APP-003': screenVitals,
-    'APP-004': screenDiary, 'APP-005': screenLocation, 'APP-006': screenHospitals,
-    'APP-007': screenNotifications, 'APP-008': screenHome };
+  const screens = { 'APP-001': screenRegister, 'APP-002': screenBasics, 'APP-003': screenMedical,
+    'APP-004': screenHome, 'APP-005': screenDiary, 'APP-006': screenLocation,
+    'APP-007': screenNotifications, 'APP-008': screenDetail };
   app.scrollTop = 0;
   await screens[screen]();
 }
@@ -205,7 +206,7 @@ async function screenRegister() {
       localStorage.setItem('momsafe_patient_id', id);
       patientId = id; patient = await getPatient(id);
       bottomnav.classList.remove('hidden'); fab.classList.remove('hidden');
-      render('APP-002');
+      render('APP-002'); // 기본 인적정보(BMI) 입력으로
     } catch (e) {
       document.getElementById('r-err').textContent = '등록 중 오류가 발생했습니다: ' + e.message;
       submitBtn.disabled = false; submitBtn.textContent = '가입 완료';
@@ -213,124 +214,310 @@ async function screenRegister() {
   });
 }
 
-/* ===================== APP-002 진단서 업로드 ===================== */
-async function screenDiagnosis() {
+/* ===================== APP-002 기본 인적정보 (키·몸무게 → BMI) ===================== */
+async function screenBasics() {
+  const wk = patient?.gestation_week ?? '-';
   app.innerHTML = `
-    <div class="pt-2 pb-2"><h1 class="text-lg font-extrabold">진단서 업로드</h1>
-      <p class="text-zinc-500 text-xs mt-1">19대 고위험 질환 진단서를 등록하면 실제위험도가 산출됩니다.</p></div>
-    <div class="mt-3"><label class="text-xs text-zinc-500 font-semibold">질환명 선택 (다중 선택)</label>
-      <div id="d-chips" class="mt-2"></div></div>
-    <div class="mt-4"><label class="text-xs text-zinc-500 font-semibold">중증도</label>
-      <div id="d-severity" class="flex gap-2 mt-2"></div></div>
-    <div class="mt-4"><label class="text-xs text-zinc-500 font-semibold">진단서 파일 (JPG/PNG/PDF, 최대 10MB)</label>
-      <input id="d-file" type="file" accept=".jpg,.jpeg,.png,.pdf" class="mt-2 text-xs"></div>
-    <p id="d-err" class="text-rose-400 text-xs mt-2"></p>
-    <button id="d-submit" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-4">등록 완료</button>
-    <button id="d-skip" class="w-full py-3 rounded-xl font-semibold text-zinc-500 text-sm mt-2">건너뛰기</button>`;
+    <div class="pt-2 pb-2"><h1 class="text-lg font-extrabold">기본 인적정보</h1>
+      <p class="text-zinc-500 text-xs mt-1">임신 주수는 분만예정일 기준으로 자동 계산됩니다.</p></div>
+    <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4 mt-3">
+      <p class="text-[11px] text-zinc-500">임신 주수</p>
+      <p class="font-bold text-lg mt-0.5">${wk}주차</p>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <div><label class="text-xs text-zinc-500 font-semibold">키 (cm)</label>
+        <input id="b-height" type="number" inputmode="decimal" class="mt-1.5" placeholder="예) 162" value="${patient?.height_cm ?? ''}"></div>
+      <div><label class="text-xs text-zinc-500 font-semibold">몸무게 (kg)</label>
+        <input id="b-weight" type="number" inputmode="decimal" class="mt-1.5" placeholder="예) 58" value="${patient?.weight_kg ?? ''}"></div>
+    </div>
+    <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4 mt-3 flex items-center justify-between">
+      <span class="text-sm text-zinc-400">BMI (자동 산출)</span>
+      <span id="b-bmi" class="font-extrabold text-lg">${patient?.bmi ?? '-'}</span>
+    </div>
+    <button id="b-submit" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-5">다음</button>`;
 
-  document.getElementById('d-chips').innerHTML = DISEASES.map(d =>
-    `<span class="chip" data-name="${esc(d.name)}">${esc(d.name)}</span>`).join('');
-  document.getElementById('d-severity').innerHTML = SEVERITY.map((s, i) =>
-    `<label class="flex-1 text-center text-xs py-2.5 rounded-lg border border-zinc-700 cursor-pointer ${i===0?'sev-on':''}">
-      <input type="radio" name="sev" value="${s.code}" class="hidden" ${i===0?'checked':''}>${s.label}</label>`).join('');
-
-  let selectedFile = null;
-  document.getElementById('d-file').addEventListener('change', (e) => {
-    const f = e.target.files[0];
-    if (f && f.size > 10 * 1024 * 1024) { document.getElementById('d-err').textContent = '파일은 10MB 이하만 업로드 가능합니다.'; e.target.value = ''; selectedFile = null; return; }
-    document.getElementById('d-err').textContent = ''; selectedFile = f;
+  const h = document.getElementById('b-height'), w = document.getElementById('b-weight');
+  const bmiEl = document.getElementById('b-bmi'), btn = document.getElementById('b-submit');
+  function upd() {
+    const v = bmiOf(w.value, h.value);
+    bmiEl.textContent = v ?? '-';
+    const ok = +h.value >= 120 && +h.value <= 210 && +w.value >= 30 && +w.value <= 200;
+    btn.disabled = !ok;
+    btn.classList.toggle('bg-emerald-300', ok); btn.classList.toggle('text-zinc-900', ok);
+    btn.classList.toggle('bg-zinc-800', !ok); btn.classList.toggle('text-zinc-500', !ok);
+  }
+  [h, w].forEach(el => el.addEventListener('input', upd)); upd();
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = '저장 중...';
+    await updatePatientBasics(patientId, { height_cm: h.value, weight_kg: w.value });
+    patient = await getPatient(patientId);
+    render('APP-003');
   });
+}
 
-  const chips = [...document.querySelectorAll('#d-chips .chip')];
-  const submitBtn = document.getElementById('d-submit');
-  chips.forEach(c => c.addEventListener('click', () => {
-    c.classList.toggle('on');
-    submitBtn.disabled = !chips.some(x => x.classList.contains('on'));
-    submitBtn.classList.toggle('bg-emerald-300', !submitBtn.disabled);
-    submitBtn.classList.toggle('text-zinc-900', !submitBtn.disabled);
-  }));
+/* ===================== APP-003 진료정보입력 (2트랙 + 생체정보) ===================== */
+// 실 OCR 백엔드가 없어, 업로드 파일명에서 질환명 키워드를 뽑아내는 데모 휴리스틱으로
+// "AI 진단서 해석"을 시뮬레이션한다(증상일기 classifySymptomDiary와 동일한 접근).
+function simulateOcr(filename) {
+  const base = (filename || '').replace(/\.[^.]+$/, '');
+  return DISEASES.filter(d => base.includes(d.name)).map(d => d.name);
+}
+async function screenMedical() {
+  app.innerHTML = `
+    <div class="pt-2 pb-2"><h1 class="text-lg font-extrabold">진료정보입력</h1>
+      <p class="text-zinc-500 text-xs mt-1">진단서 또는 직접 입력으로 위험요소를 등록하면 실제위험도가 산출됩니다.</p></div>
+
+    <div class="flex gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-800 mt-2">
+      <button id="tab-ocr" class="med-tab flex-1 py-2 rounded-lg text-xs font-bold bg-zinc-800 text-zinc-100">진단서로 등록하기</button>
+      <button id="tab-manual" class="med-tab flex-1 py-2 rounded-lg text-xs font-bold text-zinc-500">직접 입력</button>
+    </div>
+
+    <!-- OCR 트랙 -->
+    <div id="track-ocr" class="mt-4">
+      <label class="text-xs text-zinc-500 font-semibold">진단서 파일 (JPG/PNG/PDF, 최대 10MB)</label>
+      <input id="ocr-file" type="file" accept=".jpg,.jpeg,.png,.pdf" class="mt-2 text-xs">
+      <div id="ocr-status" class="text-xs text-zinc-500 mt-2"></div>
+      <div id="ocr-result" class="mt-2 hidden">
+        <p class="text-xs text-emerald-400 font-semibold mb-1">자동 인식 결과 — 확인·보정하세요</p>
+        <div id="ocr-chips"></div>
+      </div>
+    </div>
+
+    <!-- 직접 입력 트랙 -->
+    <div id="track-manual" class="mt-4 hidden">
+      <label class="text-xs text-zinc-500 font-semibold">위험요소 영역</label>
+      <div id="area-radio" class="grid grid-cols-2 gap-2 mt-2"></div>
+      <label class="text-xs text-zinc-500 font-semibold mt-3 block">위험요소 항목</label>
+      <select id="dz-select" class="mt-1.5"><option value="">영역을 먼저 선택하세요</option></select>
+      <button id="dz-add" class="w-full py-2.5 rounded-xl font-semibold text-sm bg-zinc-800 text-zinc-300 mt-2">+ 항목 추가</button>
+      <div id="dz-picked" class="mt-3"></div>
+    </div>
+
+    <div class="mt-5"><label class="text-xs text-zinc-500 font-semibold">중증도 (Grade)</label>
+      <div id="d-severity" class="flex gap-2 mt-2"></div></div>
+    <p id="d-err" class="text-rose-400 text-xs mt-2"></p>
+    <button id="d-submit" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-3">등록 완료</button>
+
+    <div class="h-px bg-zinc-800 my-6"></div>
+
+    <!-- 생체정보 -->
+    <h2 class="text-base font-extrabold">생체정보 입력</h2>
+    <div class="grid grid-cols-2 gap-3 mt-3">
+      <div><label class="text-xs text-zinc-500">수축기 혈압</label><input id="v-sys" type="number" class="mt-1.5" placeholder="mmHg"></div>
+      <div><label class="text-xs text-zinc-500">이완기 혈압</label><input id="v-dia" type="number" class="mt-1.5" placeholder="mmHg"></div>
+    </div>
+    <div class="grid grid-cols-2 gap-3 mt-3">
+      <div><label class="text-xs text-zinc-500">혈당 (mg/dL)</label><input id="v-sugar" type="number" class="mt-1.5" placeholder="mg/dL"></div>
+      <div><label class="text-xs text-zinc-500">체중 (kg)</label><input id="v-weight" type="number" class="mt-1.5" placeholder="kg"></div>
+    </div>
+    <button id="v-save" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-4">생체정보 저장</button>
+    <p id="v-warn" class="text-amber-400 text-xs mt-2"></p>
+    <div class="mt-5"><p class="text-xs text-zinc-500 font-semibold mb-2">최근 7일 추이</p>
+      <canvas id="v-chart" height="160"></canvas></div>`;
+
+  // --- 중증도 ---
+  document.getElementById('d-severity').innerHTML = SEVERITY.map((s, i) =>
+    `<label class="flex-1 text-center text-xs py-2.5 rounded-lg border border-zinc-700 cursor-pointer ${i===0?'border-emerald-300':''}">
+      <input type="radio" name="sev" value="${s.code}" class="hidden" ${i===0?'checked':''}>${s.label}</label>`).join('');
   document.querySelectorAll('#d-severity label').forEach(l => l.addEventListener('click', () => {
-    document.querySelectorAll('#d-severity label').forEach(x => x.classList.remove('sev-on', 'border-emerald-300'));
+    document.querySelectorAll('#d-severity label').forEach(x => x.classList.remove('border-emerald-300'));
     l.classList.add('border-emerald-300');
   }));
 
-  submitBtn.addEventListener('click', async () => {
-    const names = chips.filter(c => c.classList.contains('on')).map(c => c.dataset.name);
-    const severity = document.querySelector('input[name=sev]:checked').value;
-    submitBtn.disabled = true; submitBtn.textContent = '저장 중...';
-    for (const name of names) await addDisease(patientId, name, severity);
-    patient = await getPatient(patientId);
-    render('APP-008');
+  // --- 탭 전환 ---
+  let track = 'ocr';
+  const submitBtn = document.getElementById('d-submit');
+  function refreshSubmit() {
+    const has = track === 'ocr'
+      ? [...document.querySelectorAll('#ocr-chips .chip.on')].length > 0
+      : picked.size > 0;
+    submitBtn.disabled = !has;
+    submitBtn.classList.toggle('bg-emerald-300', has); submitBtn.classList.toggle('text-zinc-900', has);
+    submitBtn.classList.toggle('bg-zinc-800', !has); submitBtn.classList.toggle('text-zinc-500', !has);
+  }
+  function setTrack(t) {
+    track = t;
+    document.getElementById('track-ocr').classList.toggle('hidden', t !== 'ocr');
+    document.getElementById('track-manual').classList.toggle('hidden', t !== 'manual');
+    document.getElementById('tab-ocr').classList.toggle('bg-zinc-800', t === 'ocr');
+    document.getElementById('tab-ocr').classList.toggle('text-zinc-100', t === 'ocr');
+    document.getElementById('tab-ocr').classList.toggle('text-zinc-500', t !== 'ocr');
+    document.getElementById('tab-manual').classList.toggle('bg-zinc-800', t === 'manual');
+    document.getElementById('tab-manual').classList.toggle('text-zinc-100', t === 'manual');
+    document.getElementById('tab-manual').classList.toggle('text-zinc-500', t !== 'manual');
+    refreshSubmit();
+  }
+  document.getElementById('tab-ocr').addEventListener('click', () => setTrack('ocr'));
+  document.getElementById('tab-manual').addEventListener('click', () => setTrack('manual'));
+
+  // --- OCR 트랙 ---
+  document.getElementById('ocr-file').addEventListener('change', (e) => {
+    const f = e.target.files[0];
+    const status = document.getElementById('ocr-status'), result = document.getElementById('ocr-result');
+    if (!f) return;
+    if (f.size > 10 * 1024 * 1024) { document.getElementById('d-err').textContent = '파일은 10MB 이하만 업로드 가능합니다.'; e.target.value = ''; return; }
+    document.getElementById('d-err').textContent = '';
+    status.textContent = '🤖 AI가 진단서를 해석하고 있습니다...';
+    result.classList.add('hidden');
+    setTimeout(() => {
+      const found = simulateOcr(f.name);
+      status.textContent = found.length ? '✓ 해석 완료 — 인식된 질환을 확인하세요.' : '인식된 질환이 없습니다. 아래에서 직접 선택하거나 "직접 입력" 탭을 이용하세요.';
+      result.classList.remove('hidden');
+      document.getElementById('ocr-chips').innerHTML = DISEASES.map(d =>
+        `<span class="chip ${found.includes(d.name)?'on':''}" data-name="${esc(d.name)}">${esc(d.name)}</span>`).join('');
+      document.querySelectorAll('#ocr-chips .chip').forEach(c => c.addEventListener('click', () => { c.classList.toggle('on'); refreshSubmit(); }));
+      refreshSubmit();
+    }, 1200);
   });
-  document.getElementById('d-skip').addEventListener('click', () => render('APP-008'));
-}
 
-/* ===================== APP-003 생체정보 입력 ===================== */
-async function screenVitals() {
-  const vitals = await listVitals(patientId);
-  app.innerHTML = `
-    <h1 class="text-lg font-extrabold pt-2">생체정보 입력</h1>
-    <div class="grid grid-cols-2 gap-3 mt-4">
-      <div><label class="text-xs text-zinc-500">수축기 혈압 (90~140 정상)</label><input id="v-sys" type="number" class="mt-1.5" placeholder="mmHg"></div>
-      <div><label class="text-xs text-zinc-500">이완기 혈압 (60~90 정상)</label><input id="v-dia" type="number" class="mt-1.5" placeholder="mmHg"></div>
-    </div>
-    <div class="mt-3"><label class="text-xs text-zinc-500">혈당 (공복 기준 참고)</label><input id="v-sugar" type="number" class="mt-1.5" placeholder="mg/dL"></div>
-    <button id="v-save" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-4">저장</button>
-    <p id="v-warn" class="text-amber-400 text-xs mt-2"></p>
-    <div class="mt-6"><p class="text-xs text-zinc-500 font-semibold mb-2">최근 7일 추이</p>
-      <canvas id="v-chart" height="160"></canvas></div>`;
+  // --- 직접 입력 트랙 ---
+  const picked = new Map(); // name -> true
+  document.getElementById('area-radio').innerHTML = DISEASE_AREAS.map((a, i) =>
+    `<label class="text-center text-xs py-2.5 rounded-lg border border-zinc-700 cursor-pointer">
+      <input type="radio" name="area" value="${a.code}" class="hidden">${esc(a.label)}</label>`).join('');
+  document.querySelectorAll('#area-radio label').forEach(l => l.addEventListener('click', () => {
+    document.querySelectorAll('#area-radio label').forEach(x => x.classList.remove('border-emerald-300'));
+    l.classList.add('border-emerald-300');
+    const code = l.querySelector('input').value;
+    const opts = DISEASES.filter(d => d.area === code);
+    document.getElementById('dz-select').innerHTML = opts.map(d => `<option value="${esc(d.name)}">${esc(d.name)} — ${esc(d.desc)}</option>`).join('');
+  }));
+  function renderPicked() {
+    document.getElementById('dz-picked').innerHTML = [...picked.keys()].map(n =>
+      `<span class="chip on" data-name="${esc(n)}">${esc(n)} ✕</span>`).join('');
+    document.querySelectorAll('#dz-picked .chip').forEach(c => c.addEventListener('click', () => { picked.delete(c.dataset.name); renderPicked(); refreshSubmit(); }));
+  }
+  document.getElementById('dz-add').addEventListener('click', () => {
+    const v = document.getElementById('dz-select').value;
+    if (v) { picked.set(v, true); renderPicked(); refreshSubmit(); }
+  });
 
-  const sys = document.getElementById('v-sys'), dia = document.getElementById('v-dia'), sugar = document.getElementById('v-sugar');
+  // --- 등록 완료 ---
+  submitBtn.addEventListener('click', async () => {
+    const severity = document.querySelector('input[name=sev]:checked').value;
+    const names = track === 'ocr'
+      ? [...document.querySelectorAll('#ocr-chips .chip.on')].map(c => c.dataset.name)
+      : [...picked.keys()];
+    const method = track === 'ocr' ? 'OCR' : 'MANUAL';
+    submitBtn.disabled = true; submitBtn.textContent = '저장 중...';
+    for (const name of names) await addDisease(patientId, name, severity, method);
+    patient = await getPatient(patientId); renderHeaderRisk();
+    render('APP-004');
+  });
+
+  // --- 생체정보 ---
+  const sys = document.getElementById('v-sys'), dia = document.getElementById('v-dia'), sugar = document.getElementById('v-sugar'), weight = document.getElementById('v-weight');
   const saveBtn = document.getElementById('v-save');
-  function validate() {
-    const ok = sys.value || dia.value || sugar.value;
+  function vv() {
+    const ok = sys.value || dia.value || sugar.value || weight.value;
     saveBtn.disabled = !ok;
     saveBtn.classList.toggle('bg-emerald-300', !!ok); saveBtn.classList.toggle('text-zinc-900', !!ok);
   }
-  [sys, dia, sugar].forEach(el => el.addEventListener('input', validate));
-
+  [sys, dia, sugar, weight].forEach(el => el.addEventListener('input', vv));
   saveBtn.addEventListener('click', async () => {
     const s = +sys.value || null, d = +dia.value || null;
-    await addVital(patientId, { systolic_bp: s, diastolic_bp: d, blood_sugar: +sugar.value || null });
+    await addVital(patientId, { systolic_bp: s, diastolic_bp: d, blood_sugar: +sugar.value || null, weight_kg: +weight.value || null });
     if (s > 140 || d > 90) document.getElementById('v-warn').textContent = '⚠ 혈압이 안전 기준치를 초과하여 실제위험도가 즉시 상향 반영됩니다.';
-    patient = await getPatient(patientId);
-    screenVitals();
+    patient = await getPatient(patientId); renderHeaderRisk();
+    render('APP-003');
   });
 
+  const vitals = await listVitals(patientId);
   const last7 = vitals.slice(0, 7).reverse();
   const isDark = document.documentElement.dataset.theme === 'dark';
-  const chartColor = { blue: isDark?'#7db4ff':'#2563eb', purple: isDark?'#bcb4f0':'#6d5fd8', amber: isDark?'#ffcf5c':'#a8730a', txt: isDark?'#e9e9ee':'#16171a', mut: isDark?'#9a9aa6':'#5a5e68' };
+  const cc = { blue: isDark?'#7db4ff':'#2563eb', purple: isDark?'#bcb4f0':'#6d5fd8', amber: isDark?'#ffcf5c':'#a8730a', txt: isDark?'#e9e9ee':'#16171a', mut: isDark?'#9a9aa6':'#5a5e68' };
   new Chart(document.getElementById('v-chart'), {
     type: 'line',
-    data: {
-      labels: last7.map((v, i) => `#${i+1}`),
+    data: { labels: last7.map((v, i) => `#${i+1}`),
       datasets: [
-        { label: '수축기', data: last7.map(v => v.systolic_bp), borderColor: chartColor.blue, tension: .3 },
-        { label: '이완기', data: last7.map(v => v.diastolic_bp), borderColor: chartColor.purple, tension: .3 },
-        { label: '혈당', data: last7.map(v => v.blood_sugar), borderColor: chartColor.amber, tension: .3, yAxisID: 'y2' },
-      ],
-    },
-    options: { scales: { y: { ticks: { color: chartColor.mut } }, y2: { position: 'right', ticks: { color: chartColor.amber } }, x: { ticks: { color: chartColor.mut } } },
-      plugins: { legend: { labels: { color: chartColor.txt } } } },
+        { label: '수축기', data: last7.map(v => v.systolic_bp), borderColor: cc.blue, tension: .3 },
+        { label: '이완기', data: last7.map(v => v.diastolic_bp), borderColor: cc.purple, tension: .3 },
+        { label: '혈당', data: last7.map(v => v.blood_sugar), borderColor: cc.amber, tension: .3, yAxisID: 'y2' },
+      ] },
+    options: { scales: { y: { ticks: { color: cc.mut } }, y2: { position: 'right', ticks: { color: cc.amber } }, x: { ticks: { color: cc.mut } } },
+      plugins: { legend: { labels: { color: cc.txt } } } },
   });
 }
 
-/* ===================== APP-004 증상 일기 ===================== */
+/* ===================== APP-004 홈 (메인 대시보드) ===================== */
+async function screenHome() {
+  const r = patient?.risk;
+  const total = r ? r.clinical_score + r.infra_score + r.gestation_weight : 0;
+  const g = grade(total);
+  const preG = r?.pre_risk_level ? grade({LOW:0,MEDIUM:30,HIGH:50,EMERGENCY:80}[r.pre_risk_level] || 0) : null;
+  app.innerHTML = `
+    <h1 class="text-lg font-extrabold pt-2">${esc(patient?.name||'')}님, 안녕하세요</h1>
+    <p class="text-zinc-500 text-xs mt-1">임신 ${patient?.gestation_week ?? '-'}주차</p>
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+      <button id="risk-card" class="text-left rounded-2xl border p-4" style="border-color:${g.color}66;background:${g.color}14">
+        <p class="text-[11px] text-zinc-400">실제위험도</p>
+        <div class="flex items-end gap-1.5 mt-1"><span class="text-2xl font-extrabold" style="color:${g.color}">${total}</span><span class="badge mb-1" style="background:${g.color}33;color:${g.color}">${g.label}</span></div>
+        <p class="text-[10px] text-zinc-500 mt-1">탭하여 상세 보기 ›</p>
+      </button>
+      <div class="rounded-2xl border p-4" style="border-color:${preG?preG.color+'66':'var(--line)'};background:${preG?preG.color+'14':'transparent'}">
+        <p class="text-[11px] text-zinc-400">예비위험도</p>
+        ${preG
+          ? `<div class="flex items-end gap-1.5 mt-1"><span class="badge mt-2" style="background:${preG.color}33;color:${preG.color}">${r.pre_risk_level}</span></div><p class="text-[10px] text-zinc-500 mt-1">증상일기 기반</p>`
+          : `<p class="font-bold mt-2 text-sm text-zinc-400">정상</p><p class="text-[10px] text-zinc-500 mt-1">최근 특이 신호 없음</p>`}
+      </div>
+    </div>
+
+    <div class="mt-5">
+      <div class="flex items-center justify-between mb-2"><p class="text-xs text-zinc-500 font-semibold">추천 병원 1~3순위</p></div>
+      <div id="home-hosp" class="space-y-2"><p class="text-zinc-500 text-xs">불러오는 중...</p></div>
+    </div>
+
+    <div class="grid grid-cols-4 gap-2 mt-5">
+      <button data-go="APP-005" class="menu py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">📝<br>증상일기</button>
+      <button data-go="APP-003" class="menu py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">📋<br>진료정보</button>
+      <button data-go="APP-006" class="menu py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">📍<br>체류지</button>
+      <button data-go="APP-007" class="menu py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">🔔<br>알림</button>
+    </div>`;
+  document.getElementById('risk-card').addEventListener('click', () => render('APP-008'));
+  document.querySelectorAll('.menu').forEach(b => b.addEventListener('click', () => render(b.dataset.go)));
+
+  // 추천병원 인라인 계산
+  const loc = patient?.location || { latitude: 37.5665, longitude: 126.9780 };
+  const hospitals = await listHospitals();
+  const ranked = hospitalPriority(g.key, loc, hospitals);
+  await saveRecommendations(patientId, ranked);
+  document.getElementById('home-hosp').innerHTML = ranked.map(h => `
+    <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-3 flex items-center gap-3">
+      <div class="w-7 h-7 rounded-lg bg-violet-300 text-zinc-900 font-extrabold flex items-center justify-center flex-none text-sm">${h.priority_rank}</div>
+      <div class="flex-1 min-w-0">
+        <b class="text-[13px]">${esc(h.hospital_name)}</b>
+        <p class="text-[10px] text-zinc-500 mt-0.5">${h.distance_km}km · 약 ${h.eta_minutes}분 · NICU ${h.nicu_available_beds ?? 0}병상</p>
+      </div>
+      <a href="tel:${esc(h.emergency_phone || '0000000000')}" class="w-9 h-9 rounded-full bg-rose-400 text-zinc-900 flex items-center justify-center flex-none">📞</a>
+    </div>`).join('') || '<p class="text-zinc-500 text-xs">추천 병원 정보가 없습니다.</p>';
+}
+
+/* ===================== APP-005 증상 일기 (빠른선택 칩) ===================== */
+const DIARY_CHIPS = ['두통', '부종', '출혈', '복통', '시야 흐림', '태동 감소', '양수', '경련', '호흡곤란', '고열'];
 async function screenDiary() {
   app.innerHTML = `
     <h1 class="text-lg font-extrabold pt-2">증상 일기</h1>
-    <p class="text-zinc-500 text-xs mt-1">자유롭게 적어주세요. AI가 위험 신호를 분석합니다.</p>
-    <textarea id="diary-text" rows="5" maxlength="500" class="mt-3" placeholder="예) 아침부터 머리가 아프고 눈앞이 흐릿해요. 배도 자주 뭉쳐요."></textarea>
+    <p class="text-zinc-500 text-xs mt-1">자유롭게 적거나 아래 빠른선택을 눌러주세요. AI가 위험 신호를 분석합니다.</p>
+    <div id="diary-chips" class="mt-3">${DIARY_CHIPS.map(c => `<span class="chip" data-c="${esc(c)}">${esc(c)}</span>`).join('')}</div>
+    <textarea id="diary-text" rows="5" maxlength="500" class="mt-2" placeholder="예) 아침부터 머리가 아프고 눈앞이 흐릿해요. 배도 자주 뭉쳐요."></textarea>
     <div class="text-right text-[11px] text-zinc-500 mt-1"><span id="diary-count">0</span>/500</div>
     <button id="diary-submit" disabled class="w-full py-3.5 rounded-xl font-bold bg-zinc-800 text-zinc-500 mt-2">일기 등록</button>
-    <div id="diary-result" class="mt-4"></div>`;
+    <div id="diary-result" class="mt-4"></div>
+    <div class="mt-6"><p class="text-xs text-zinc-500 font-semibold mb-2">이전 일기 (최근 7일)</p><div id="diary-recent" class="space-y-2"></div></div>`;
 
   const ta = document.getElementById('diary-text'), counter = document.getElementById('diary-count'), btn = document.getElementById('diary-submit');
-  ta.addEventListener('input', () => {
+  function upd() {
     counter.textContent = ta.value.length;
     btn.disabled = !ta.value.trim();
     btn.classList.toggle('bg-emerald-300', !!ta.value.trim()); btn.classList.toggle('text-zinc-900', !!ta.value.trim());
-  });
+  }
+  ta.addEventListener('input', upd);
+  document.querySelectorAll('#diary-chips .chip').forEach(c => c.addEventListener('click', () => {
+    const t = ta.value.trim();
+    ta.value = (t ? t + ' ' : '') + `${c.dataset.c} 증상이 있어요.`;
+    upd(); ta.focus();
+  }));
   btn.addEventListener('click', async () => {
     btn.disabled = true; btn.textContent = 'AI 분석 중...';
     const result = await addSymptomDiary(patientId, ta.value.trim());
@@ -343,10 +530,26 @@ async function screenDiary() {
         ${result.hospital_visit_recommended ? '<p class="text-amber-400 text-xs mt-2">→ 병원 방문을 권고드립니다. 알림 내역에서 확인해 주세요.</p>' : ''}
       </div>`;
     btn.textContent = '일기 등록'; btn.disabled = false; ta.value=''; counter.textContent='0';
+    loadRecent();
   });
+
+  async function loadRecent() {
+    const diaries = await listDiaries(patientId);
+    document.getElementById('diary-recent').innerHTML = diaries.slice(0, 7).map(d => {
+      const g = grade({LOW:0,MEDIUM:30,HIGH:50,EMERGENCY:80}[d.pre_risk_level] || 0);
+      return `<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-3">
+        <div class="flex justify-between items-start gap-2">
+          <span class="badge" style="background:${g.color}22;color:${g.color}">${d.pre_risk_level}</span>
+          <span class="text-[10px] text-zinc-500">${d.created_at?.toDate ? d.created_at.toDate().toLocaleDateString('ko-KR') : ''}</span>
+        </div>
+        <p class="text-xs text-zinc-400 mt-2">${esc(d.content)}</p>
+      </div>`;
+    }).join('') || '<p class="text-zinc-500 text-xs">기록이 없습니다.</p>';
+  }
+  loadRecent();
 }
 
-/* ===================== APP-005 체류 지역 업데이트 ===================== */
+/* ===================== APP-006 체류 지역 업데이트 ===================== */
 function pseudoGeocode(address) {
   let h = 0; for (const c of address) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return { latitude: 37.45 + (h % 1000) / 10000, longitude: 126.95 + ((h >> 8) % 1000) / 10000 };
@@ -355,6 +558,7 @@ async function screenLocation() {
   const loc = patient?.location || {};
   app.innerHTML = `
     <h1 class="text-lg font-extrabold pt-2">체류 지역 업데이트</h1>
+    <p class="text-zinc-500 text-xs mt-1">임시 체류 시 해당 권역 기준으로 추천 병원이 재배정됩니다.</p>
     <div class="flex gap-2 mt-3">
       <label class="flex-1 text-center text-sm py-2.5 rounded-lg border border-zinc-700 cursor-pointer"><input type="radio" name="loctype" value="HOME" class="hidden" ${loc.location_type!=='TEMPORARY'?'checked':''}>거주지</label>
       <label class="flex-1 text-center text-sm py-2.5 rounded-lg border border-zinc-700 cursor-pointer"><input type="radio" name="loctype" value="TEMPORARY" class="hidden" ${loc.location_type==='TEMPORARY'?'checked':''}>임시체류지</label>
@@ -369,7 +573,6 @@ async function screenLocation() {
     <p id="loc-msg" class="text-emerald-400 text-xs mt-2"></p>`;
 
   document.querySelectorAll('input[name=loctype]').forEach(r => r.addEventListener('change', () => {
-    document.getElementById('addr-wrap').classList.toggle('hidden', r.value !== 'TEMPORARY' && document.querySelector('input[name=loctype]:checked').value !== 'TEMPORARY');
     document.getElementById('addr-wrap').classList.toggle('hidden', document.querySelector('input[name=loctype]:checked').value !== 'TEMPORARY');
   }));
 
@@ -386,80 +589,98 @@ async function screenLocation() {
   });
 }
 
-/* ===================== APP-006 추천 병원 확인 ===================== */
-async function screenHospitals() {
-  app.innerHTML = `<h1 class="text-lg font-extrabold pt-2">추천 병원</h1><div id="hosp-list" class="mt-3 space-y-3"></div>`;
-  const loc = patient?.location || { latitude: 37.5665, longitude: 126.9780 };
-  const hospitals = await listHospitals();
-  const riskLevel = patient?.risk ? grade(patient.risk.clinical_score + patient.risk.infra_score + patient.risk.gestation_weight).key : 'LOW';
-  const ranked = hospitalPriority(riskLevel, loc, hospitals);
-  await saveRecommendations(patientId, ranked);
-  document.getElementById('hosp-list').innerHTML = ranked.map(h => `
-    <div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4 flex items-center gap-3">
-      <div class="w-8 h-8 rounded-lg bg-violet-300 text-zinc-900 font-extrabold flex items-center justify-center flex-none">${h.priority_rank}</div>
-      <div class="flex-1 min-w-0">
-        <b class="text-sm">${esc(h.hospital_name)}</b>
-        <p class="text-[11px] text-zinc-500 mt-0.5">${h.distance_km}km · 약 ${h.eta_minutes}분 · NICU ${h.nicu_available_beds ?? 0}병상</p>
-      </div>
-      <a href="tel:${esc(h.emergency_phone || '0000000000')}" class="w-10 h-10 rounded-full bg-rose-400 text-zinc-900 flex items-center justify-center flex-none">📞</a>
-    </div>`).join('') || '<p class="text-zinc-500 text-sm">추천 병원 정보를 불러오는 중입니다.</p>';
-}
-
-/* ===================== APP-007 알림 내역 ===================== */
+/* ===================== APP-007 알림 내역 (필터 탭) ===================== */
+let notiFilter = 'all';
 async function screenNotifications() {
-  app.innerHTML = `<h1 class="text-lg font-extrabold pt-2">알림 내역</h1><div id="noti-list" class="mt-3 space-y-3"></div>`;
-  const diaries = await listDiaries(patientId);
-  document.getElementById('noti-list').innerHTML = diaries.map(d => {
-    const g = grade({LOW:0,MEDIUM:30,HIGH:50,EMERGENCY:80}[d.pre_risk_level] || 0);
-    return `<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-      <div class="flex justify-between items-start gap-2">
-        <span class="badge" style="background:${g.color}22;color:${g.color}">예비위험도 ${g.label}</span>
-        <span class="text-[10px] text-zinc-500">${d.created_at?.toDate ? d.created_at.toDate().toLocaleString('ko-KR') : ''}</span>
-      </div>
-      <p class="text-xs text-zinc-400 mt-2">${esc(d.llm_summary)}</p>
-      ${d.hospital_visit_recommended ? (d.visit_confirmed
-        ? `<span class="inline-block mt-2 text-[11px] px-3 py-1 rounded-full bg-zinc-800 text-zinc-500">✓ 방문 완료 확인됨</span>`
-        : `<button class="visit-btn mt-2 text-[11px] px-3 py-1.5 rounded-full bg-emerald-300 text-zinc-900 font-semibold" data-id="${d.diary_id}">방문 완료 표시</button>`) : ''}
-    </div>`;
-  }).join('') || '<p class="text-zinc-500 text-sm">알림 내역이 없습니다.</p>';
+  app.innerHTML = `
+    <h1 class="text-lg font-extrabold pt-2">알림 내역</h1>
+    <div class="flex gap-1 p-1 rounded-xl bg-zinc-900 border border-zinc-800 mt-3">
+      <button class="noti-tab flex-1 py-2 rounded-lg text-xs font-bold" data-f="all">전체</button>
+      <button class="noti-tab flex-1 py-2 rounded-lg text-xs font-bold" data-f="pre">예비위험</button>
+      <button class="noti-tab flex-1 py-2 rounded-lg text-xs font-bold" data-f="rec">병원방문 권고</button>
+    </div>
+    <div id="noti-list" class="mt-3 space-y-3"></div>`;
 
-  document.querySelectorAll('.visit-btn').forEach(b => b.addEventListener('click', async () => {
-    await confirmDiaryVisit(patientId, b.dataset.id);
-    screenNotifications();
-  }));
+  const diaries = await listDiaries(patientId);
+  function paint() {
+    document.querySelectorAll('.noti-tab').forEach(b => {
+      const on = b.dataset.f === notiFilter;
+      b.classList.toggle('bg-zinc-800', on); b.classList.toggle('text-zinc-100', on); b.classList.toggle('text-zinc-500', !on);
+    });
+    const filtered = diaries.filter(d =>
+      notiFilter === 'all' ? true :
+      notiFilter === 'pre' ? ['MEDIUM','HIGH','EMERGENCY'].includes(d.pre_risk_level) :
+      d.hospital_visit_recommended);
+    document.getElementById('noti-list').innerHTML = filtered.map(d => {
+      const g = grade({LOW:0,MEDIUM:30,HIGH:50,EMERGENCY:80}[d.pre_risk_level] || 0);
+      return `<div class="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <div class="flex justify-between items-start gap-2">
+          <span class="badge" style="background:${g.color}22;color:${g.color}">예비위험도 ${g.label}</span>
+          <span class="text-[10px] text-zinc-500">${d.created_at?.toDate ? d.created_at.toDate().toLocaleString('ko-KR') : ''}</span>
+        </div>
+        <p class="text-xs text-zinc-400 mt-2">${esc(d.llm_summary)}</p>
+        ${d.hospital_visit_recommended ? (d.visit_confirmed
+          ? `<span class="inline-block mt-2 text-[11px] px-3 py-1 rounded-full bg-zinc-800 text-zinc-500">✓ 방문 완료 확인됨</span>`
+          : `<button class="visit-btn mt-2 text-[11px] px-3 py-1.5 rounded-full bg-emerald-300 text-zinc-900 font-semibold" data-id="${d.diary_id}">방문 완료 표시</button>`) : ''}
+      </div>`;
+    }).join('') || '<p class="text-zinc-500 text-sm">해당하는 알림이 없습니다.</p>';
+    document.querySelectorAll('.visit-btn').forEach(b => b.addEventListener('click', async () => {
+      await confirmDiaryVisit(patientId, b.dataset.id);
+      const idx = diaries.findIndex(x => x.diary_id === b.dataset.id);
+      if (idx >= 0) diaries[idx].visit_confirmed = true;
+      paint();
+    }));
+  }
+  document.querySelectorAll('.noti-tab').forEach(b => b.addEventListener('click', () => { notiFilter = b.dataset.f; paint(); }));
+  paint();
 }
 
-/* ===================== APP-008 내 위험도 현황 (홈) ===================== */
-async function screenHome() {
+/* ===================== APP-008 내 현재상태 (세부) ===================== */
+async function screenDetail() {
   const r = patient?.risk;
   const total = r ? r.clinical_score + r.infra_score + r.gestation_weight : 0;
   const g = grade(total);
+  const preG = r?.pre_risk_level ? grade({LOW:0,MEDIUM:30,HIGH:50,EMERGENCY:80}[r.pre_risk_level] || 0) : null;
   const vitals = await listVitals(patientId);
   const latest = vitals[0];
   app.innerHTML = `
-    <h1 class="text-lg font-extrabold pt-2">${esc(patient?.name||'')}님, 안녕하세요</h1>
-    <p class="text-zinc-500 text-xs mt-1">임신 ${patient?.gestation_week ?? '-'}주차</p>
-    <div class="rounded-2xl border p-5 mt-4" style="border-color:${g.color}66;background:${g.color}14">
-      <p class="text-xs text-zinc-400">실제위험도</p>
-      <div class="flex items-end gap-2 mt-1"><span class="text-3xl font-extrabold" style="color:${g.color}">${total}</span><span class="badge mb-1.5" style="background:${g.color}33;color:${g.color}">${g.label}</span></div>
-      ${r?.pre_risk_level ? `<p class="text-xs text-amber-400 mt-2">예비위험도 ${r.pre_risk_level} 감지됨 — 증상일기 참고</p>` : ''}
+    <div class="flex items-center gap-2 pt-2">
+      <button id="back-home" class="text-zinc-500 text-sm">‹ 홈</button>
+      <h1 class="text-lg font-extrabold">내 현재상태</h1>
     </div>
     <div class="grid grid-cols-2 gap-3 mt-4">
-      <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-3.5">
-        <p class="text-[11px] text-zinc-500">최근 혈압</p>
-        <p class="font-bold mt-1">${latest ? `${latest.systolic_bp??'-'}/${latest.diastolic_bp??'-'}` : '입력 없음'}</p>
+      <div class="rounded-2xl border p-4" style="border-color:${g.color}66;background:${g.color}14">
+        <p class="text-[11px] text-zinc-400">실제위험도</p>
+        <div class="flex items-end gap-1.5 mt-1"><span class="text-2xl font-extrabold" style="color:${g.color}">${total}</span><span class="badge mb-1" style="background:${g.color}33;color:${g.color}">${g.label}</span></div>
       </div>
-      <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-3.5">
-        <p class="text-[11px] text-zinc-500">관할 보건소</p>
-        <p class="font-bold mt-1 text-[13px]">중앙보건소</p>
+      <div class="rounded-2xl border p-4" style="border-color:${preG?preG.color+'66':'var(--line)'};background:${preG?preG.color+'14':'transparent'}">
+        <p class="text-[11px] text-zinc-400">예비위험도</p>
+        <p class="font-bold mt-2 text-sm" style="color:${preG?preG.color:'inherit'}">${r?.pre_risk_level || '정상'}</p>
       </div>
     </div>
-    <div class="grid grid-cols-3 gap-2 mt-4">
-      <button data-go="APP-002" class="quick py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">📋<br>진단서</button>
-      <button data-go="APP-003" class="quick py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">💓<br>생체정보</button>
-      <button data-go="APP-005" class="quick py-3 rounded-xl bg-zinc-900 border border-zinc-800 text-[11px]">📍<br>체류지</button>
-    </div>`;
-  document.querySelectorAll('.quick').forEach(b => b.addEventListener('click', () => render(b.dataset.go)));
+    <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4 mt-3">
+      <p class="text-[11px] text-zinc-500 mb-2">위험도 구성</p>
+      <div class="text-xs text-zinc-400 space-y-1">
+        <div class="flex justify-between"><span>임상 점수 (기저질환)</span><b>${r?.clinical_score ?? 0}</b></div>
+        <div class="flex justify-between"><span>인프라 점수 (지역)</span><b>${r?.infra_score ?? 0}</b></div>
+        <div class="flex justify-between"><span>임신주수 가중</span><b>${r?.gestation_weight ?? 0}</b></div>
+      </div>
+    </div>
+    <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4 mt-3">
+      <p class="text-[11px] text-zinc-500 mb-2">최근 생체정보</p>
+      <div class="grid grid-cols-2 gap-y-2 text-xs">
+        <div><span class="text-zinc-500">혈압</span> <b>${latest ? `${latest.systolic_bp??'-'}/${latest.diastolic_bp??'-'}` : '-'}</b></div>
+        <div><span class="text-zinc-500">혈당</span> <b>${latest?.blood_sugar ?? '-'}</b></div>
+        <div><span class="text-zinc-500">체중</span> <b>${latest?.weight_kg ?? patient?.weight_kg ?? '-'}kg</b></div>
+        <div><span class="text-zinc-500">BMI</span> <b>${patient?.bmi ?? '-'}</b></div>
+      </div>
+    </div>
+    <div class="rounded-xl bg-zinc-900 border border-zinc-800 p-4 mt-3 flex items-center justify-between">
+      <span class="text-sm text-zinc-400">담당 보건소</span><b class="text-sm">중앙보건소</b>
+    </div>
+    <button data-go="APP-003" class="detail-go w-full py-3.5 rounded-xl font-bold bg-emerald-300 text-zinc-900 mt-4">진료정보입력 바로가기</button>`;
+  document.getElementById('back-home').addEventListener('click', () => render('APP-004'));
+  document.querySelectorAll('.detail-go').forEach(b => b.addEventListener('click', () => render(b.dataset.go)));
 }
 
 boot();

@@ -281,9 +281,15 @@
             <span><i style="background:var(--blue);border-radius:3px"></i>분만 의료기관</span>
           </div>
         </div>
-        <div class="panel" style="align-self:start">
-          <h3>등록 의료기관</h3>
-          <div id="infra-hosp-list"></div>
+        <div class="wf-col" style="display:flex;flex-direction:column;gap:16px;align-self:start">
+          <div class="panel">
+            <h3><span class="dot" style="background:var(--red)"></span>관할 위험도 분포</h3>
+            <canvas id="infra-bar" height="150"></canvas>
+          </div>
+          <div class="panel">
+            <h3>등록 의료기관</h3>
+            <div id="infra-hosp-list"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -544,7 +550,7 @@ function totalScore(p){ const r=p.risk; return r ? r.clinical_score+r.infra_scor
 let PATIENTS = [], HOSPITALS = [], REQUESTS = [], UNCONFIRMED = [];
 let dashTab='list', dashFilter='all', dashSearch='';
 let role='health';
-let infraMap=null, infraLayer=null, infraTiles=null;
+let infraMap=null, infraLayer=null, infraTiles=null, infraBarChart=null;
 let openDrawerPid=null;
 let emsFound=null, emsAcute=new Set(), emsRequestId=null;
 let SELF_HOSP=null;
@@ -1015,6 +1021,24 @@ function renderInfra(){
   });
   if(pts.length) infraMap.fitBounds(pts, { padding:[30,30], maxZoom:13 });
   setTimeout(()=>infraMap.invalidateSize(), 50);
+
+  // 관할 위험도 분포 Bar Chart (등급별 산모 수)
+  const dist={ EMERGENCY:0, HIGH:0, MEDIUM:0, LOW:0 };
+  PATIENTS.forEach(p=>{ dist[grade(totalScore(p)).key]++; });
+  const isDark=document.documentElement.dataset.theme==='dark';
+  const barCanvas=document.getElementById('infra-bar');
+  if(barCanvas){
+    if(infraBarChart) infraBarChart.destroy();
+    infraBarChart=new Chart(barCanvas, {
+      type:'bar',
+      data:{ labels:['응급','고위험','중위험','저위험'],
+        datasets:[{ data:[dist.EMERGENCY,dist.HIGH,dist.MEDIUM,dist.LOW],
+          backgroundColor:['#e8384a','#e07a2c','#c99a12','#2fb673'], borderRadius:6 }] },
+      options:{ plugins:{legend:{display:false}},
+        scales:{ y:{beginAtZero:true, ticks:{precision:0, color:isDark?'#9a9aa6':'#5a5e68'}, grid:{color:isDark?'#2a2a33':'#e5e7eb'}},
+          x:{ticks:{color:isDark?'#e9e9ee':'#16171a'}, grid:{display:false}} } },
+    });
+  }
 
   document.getElementById('infra-hosp-list').innerHTML=HOSPITALS.map(h=>`
     <div style="padding:9px 0;border-bottom:1px solid var(--line)">

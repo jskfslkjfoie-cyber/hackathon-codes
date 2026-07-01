@@ -5,26 +5,33 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 
 /* ===================== 19대 고위험 질환 (PATIENT_DISEASE.disease_name) ===================== */
+// area: 직접입력 트랙(APP-003)의 "위험요소 영역 4분류" — 영역 선택 → 항목 Dropdown 용도.
+export const DISEASE_AREAS = [
+  { code: 'BLEEDING', label: '출혈성 질환' },
+  { code: 'HYPERTENSION', label: '혈압·자간전증' },
+  { code: 'PRETERM', label: '조기진통·양막·태아' },
+  { code: 'COMORBID', label: '기타 기저질환·과거력' },
+];
 export const DISEASES = [
-  { name: '전치태반', weight: 35, desc: '급성 대량출혈 위험' },
-  { name: '태반조기박리', weight: 38, desc: '모체·태아 즉시 위험' },
-  { name: '중증 자간전증', weight: 34, desc: '경련·장기손상 위험' },
-  { name: '임신성 고혈압', weight: 18, desc: '자간전증 진행 위험' },
-  { name: 'HELLP 증후군', weight: 36, desc: '간·혈액 응급' },
-  { name: '조기진통', weight: 22, desc: '조산 위험' },
-  { name: '양막 조기파열', weight: 20, desc: '감염·조산 위험' },
-  { name: '다태임신', weight: 16, desc: '조산·출혈 위험 증가' },
-  { name: '임신성 당뇨', weight: 12, desc: '거대아·분만합병증' },
-  { name: '전치혈관', weight: 30, desc: '태아 출혈 위험' },
-  { name: '자궁근종 합병', weight: 10, desc: '분만 진행 장애' },
-  { name: '심장질환 동반', weight: 28, desc: '분만 중 심부전 위험' },
-  { name: '신장질환 동반', weight: 22, desc: '전자간증·신부전' },
-  { name: '갑상선 기능이상', weight: 8, desc: '대사 불안정' },
-  { name: '정맥혈전색전증 과거', weight: 18, desc: '폐색전 위험' },
-  { name: '산후출혈 과거력', weight: 14, desc: '재발 출혈 위험' },
-  { name: '제왕절개 과거력', weight: 8, desc: '자궁파열·유착' },
-  { name: '양수과소증', weight: 14, desc: '태아 곤란' },
-  { name: '태아 성장지연', weight: 16, desc: '태아 곤란·조기분만' },
+  { name: '전치태반', weight: 35, desc: '급성 대량출혈 위험', area: 'BLEEDING' },
+  { name: '태반조기박리', weight: 38, desc: '모체·태아 즉시 위험', area: 'BLEEDING' },
+  { name: '전치혈관', weight: 30, desc: '태아 출혈 위험', area: 'BLEEDING' },
+  { name: '산후출혈 과거력', weight: 14, desc: '재발 출혈 위험', area: 'BLEEDING' },
+  { name: '중증 자간전증', weight: 34, desc: '경련·장기손상 위험', area: 'HYPERTENSION' },
+  { name: '임신성 고혈압', weight: 18, desc: '자간전증 진행 위험', area: 'HYPERTENSION' },
+  { name: 'HELLP 증후군', weight: 36, desc: '간·혈액 응급', area: 'HYPERTENSION' },
+  { name: '조기진통', weight: 22, desc: '조산 위험', area: 'PRETERM' },
+  { name: '양막 조기파열', weight: 20, desc: '감염·조산 위험', area: 'PRETERM' },
+  { name: '양수과소증', weight: 14, desc: '태아 곤란', area: 'PRETERM' },
+  { name: '태아 성장지연', weight: 16, desc: '태아 곤란·조기분만', area: 'PRETERM' },
+  { name: '다태임신', weight: 16, desc: '조산·출혈 위험 증가', area: 'PRETERM' },
+  { name: '임신성 당뇨', weight: 12, desc: '거대아·분만합병증', area: 'COMORBID' },
+  { name: '자궁근종 합병', weight: 10, desc: '분만 진행 장애', area: 'COMORBID' },
+  { name: '심장질환 동반', weight: 28, desc: '분만 중 심부전 위험', area: 'COMORBID' },
+  { name: '신장질환 동반', weight: 22, desc: '전자간증·신부전', area: 'COMORBID' },
+  { name: '갑상선 기능이상', weight: 8, desc: '대사 불안정', area: 'COMORBID' },
+  { name: '정맥혈전색전증 과거', weight: 18, desc: '폐색전 위험', area: 'COMORBID' },
+  { name: '제왕절개 과거력', weight: 8, desc: '자궁파열·유착', area: 'COMORBID' },
 ];
 
 // 진단서 기준 중증도 3단계 (PATIENT_DISEASE.severity) — 가중치는 기능정의서에 수치가 없어 합리적 기본값으로 단계화
@@ -61,6 +68,13 @@ export function grade(score) {
   if (score >= 45) return { key: 'HIGH', label: '고위험', cls: 'b-high', color: '#e07a2c' };
   if (score >= 22) return { key: 'MEDIUM', label: '중위험', cls: 'b-mid', color: '#c99a12' };
   return { key: 'LOW', label: '저위험', cls: 'b-low', color: '#2fb673' };
+}
+
+// BMI = 체중(kg) / 키(m)^2. 소수 1자리 반올림. (APP-002 기본 인적정보)
+export function bmiOf(weight_kg, height_cm) {
+  const w = +weight_kg, h = +height_cm;
+  if (!w || !h) return null;
+  return Math.round((w / ((h / 100) ** 2)) * 10) / 10;
 }
 
 // 임신 주수: 분만예정일(EDD)은 통상 LMP+40주 기준이므로 실제 주수 = 40 - 잔여주수
@@ -165,6 +179,14 @@ export async function getPatient(patientId) {
   await authReady;
   const snap = await getDoc(doc(db, 'patients', patientId));
   return snap.exists() ? { patient_id: snap.id, ...snap.data() } : null;
+}
+
+// APP-002 기본 인적정보: 키·몸무게 → BMI 산출 후 patient 문서에 저장
+export async function updatePatientBasics(patientId, { height_cm, weight_kg }) {
+  await authReady;
+  await updateDoc(doc(db, 'patients', patientId), {
+    height_cm: +height_cm || null, weight_kg: +weight_kg || null, bmi: bmiOf(weight_kg, height_cm),
+  });
 }
 
 // 시트 날짜 문자열 → Firestore Timestamp (데모 시나리오의 고정 시각을 그대로 보존)
@@ -380,9 +402,9 @@ export function watchPatients(cb) {
 }
 
 /* ---- PATIENT_DISEASE ---- */
-export async function addDisease(patientId, disease_name, severity) {
+export async function addDisease(patientId, disease_name, severity, input_method = 'MANUAL') {
   await authReady;
-  await addDoc(collection(db, 'patients', patientId, 'diseases'), { disease_name, severity });
+  await addDoc(collection(db, 'patients', patientId, 'diseases'), { disease_name, severity, input_method });
   return recomputeRisk(patientId);
 }
 export async function listDiseases(patientId) {
@@ -403,7 +425,7 @@ export async function addVital(patientId, v) {
   await authReady;
   await addDoc(collection(db, 'patients', patientId, 'vitals'), {
     systolic_bp: v.systolic_bp ?? null, diastolic_bp: v.diastolic_bp ?? null,
-    blood_sugar: v.blood_sugar ?? null, measured_at: serverTimestamp(),
+    blood_sugar: v.blood_sugar ?? null, weight_kg: v.weight_kg ?? null, measured_at: serverTimestamp(),
   });
   if (v.systolic_bp > 140 || v.diastolic_bp > 90) await recomputeRisk(patientId, { forceHigh: true });
 }
