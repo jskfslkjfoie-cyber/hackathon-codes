@@ -517,7 +517,9 @@ export async function recomputeRisk(patientId, opts = {}) {
 // 버전 마커는 보안규칙이 허용하는 hospitals 컬렉션 안에 보관하고(별도 meta 컬렉션은 규칙
 // 미허용) 목록/구독에서는 필터링한다.
 const SEED_VERSION = 8;
-const SEED_MARKER_ID = '__seed__';
+// 주의: Firestore는 `__...__` 형태의 문서 ID를 예약어로 금지한다. `__seed__`를 쓰면
+// getDoc/setDoc이 즉시 예외를 던져 ensureSeedData 전체가 실패한다 → 유효한 ID 사용.
+const SEED_MARKER_ID = 'seed_marker';
 
 // 가상 시드 데이터셋(고맘워요_가상시드데이터: 6_HOSPITAL + 7_HOSPITAL_STATUS 병합).
 // 결정적 문서 ID(h1~h10)를 써서 추천/응급 릴레이 로그가 hospital_id로 교차 참조할 수 있게 한다.
