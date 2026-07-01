@@ -619,13 +619,14 @@ const ROLE_LABEL = { health:'보건소', ems:'119', hosp:'병원' };
 let loginRole = 'health';
 const gate = document.getElementById('login-gate');
 function selectLoginRole(r){
+  if(!DEMO_ACCOUNTS[r]) return; // 잘못된 역할 값 방어
   loginRole = r;
   document.querySelectorAll('#login-roles button').forEach(b=>b.classList.toggle('on', b.dataset.lr===r));
   document.getElementById('login-id').value = DEMO_ACCOUNTS[r].id;
   document.getElementById('login-pw').value = DEMO_ACCOUNTS[r].pw;
   document.getElementById('login-err').textContent = '';
 }
-document.querySelectorAll('#login-roles button').forEach(b=>b.addEventListener('click', ()=>selectLoginRole(b.dataset.r)));
+document.querySelectorAll('#login-roles button').forEach(b=>b.addEventListener('click', ()=>selectLoginRole(b.dataset.lr)));
 function doLogin(){
   const id=document.getElementById('login-id').value.trim(), pw=document.getElementById('login-pw').value.trim();
   const acc=DEMO_ACCOUNTS[loginRole];
