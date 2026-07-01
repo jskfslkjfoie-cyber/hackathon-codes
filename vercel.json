@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/code/momsafe.html" }
+    { "source": "/", "destination": "/code/momsafe.html" },
+    { "source": "/userflow", "destination": "/code/userflow.html" },
+    { "source": "/review-board", "destination": "/code/review-board.html" }
   ]
 }

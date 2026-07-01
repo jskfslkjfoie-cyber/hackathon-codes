@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맘스세이프 — 사용자별 유저플로우 v3.0</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.36.0/tabler-icons.min.css">
+<style>
+:root {
+  --font: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --green-bg: #E2EFDA; --green: #166534;
+  --blue-bg: #EFF6FF;  --blue: #1D4ED8;
+  --amber-bg: #FFFBEB; --amber: #92400E;
+  --purple-bg: #FDF4FF; --purple: #6B21A8;
+  --red-bg: #FCEBEB;   --red: #A32D2D;
+  --teal-bg: #E6F7F5;  --teal: #0D7A6D;
+  --navy-bg: #1e293b;  --navy-fg: #5EEAD4;
+  --border: #e2e8f0; --border-strong: #cbd5e1;
+  --text: #0f172a; --muted: #64748b;
+  --surface: #f8fafc;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font); background: #e2e8f0; color: var(--text); }
+
+/* nav */
+nav {
+  position: sticky; top: 0; z-index: 100;
+  background: #0f172a; padding: 0 28px;
+  display: flex; align-items: center; gap: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.25);
+}
+nav .logo { color: var(--navy-fg); font-weight: 700; font-size: 14px; padding: 14px 0; margin-right: 24px; white-space: nowrap; }
+nav a {
+  color: #64748b; font-size: 13px; font-weight: 500;
+  padding: 14px 14px; text-decoration: none; border-bottom: 2px solid transparent;
+}
+nav a:hover { color: #e2e8f0; }
+nav a.on { color: var(--navy-fg); border-bottom-color: var(--navy-fg); }
+
+/* container */
+.wrap { max-width: 1200px; margin: 28px auto 60px; }
+.section { display: none; }
+.section.on { display: block; }
+
+/* 사용자 헤더 배너 */
+.user-banner {
+  border-radius: 16px; padding: 28px 32px;
+  display: flex; align-items: center; gap: 20px;
+  margin-bottom: 28px;
+}
+.user-banner .icon { font-size: 36px; }
+.user-banner h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+.user-banner p { font-size: 14px; opacity: .8; }
+.banner-green  { background: linear-gradient(135deg, #166534, #22c55e); color: #fff; }
+.banner-blue   { background: linear-gradient(135deg, #1D4ED8, #60a5fa); color: #fff; }
+.banner-amber  { background: linear-gradient(135deg, #92400E, #f59e0b); color: #fff; }
+.banner-purple { background: linear-gradient(135deg, #6B21A8, #c084fc); color: #fff; }
+
+/* 플로우 카드 */
+.flow-section { background: #fff; border-radius: 16px; padding: 24px 28px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+.flow-title {
+  font-size: 15px; font-weight: 700; margin-bottom: 18px;
+  display: flex; align-items: center; gap: 10px;
+}
+.flow-title .badge {
+  font-size: 10px; font-weight: 600; padding: 2px 8px; border-radius: 10px;
+}
+
+/* 스텝 플로우 */
+.flow-row { display: flex; align-items: flex-start; gap: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; }
+.step {
+  min-width: 110px; max-width: 140px; flex-shrink: 0;
+  border-radius: 10px; padding: 10px 10px 8px;
+  text-align: center; position: relative;
+}
+.step .step-num {
+  font-size: 10px; font-weight: 700; opacity: .6; margin-bottom: 4px;
+}
+.step .step-title { font-size: 12px; font-weight: 700; line-height: 1.3; margin-bottom: 3px; }
+.step .step-desc  { font-size: 10px; opacity: .75; line-height: 1.3; }
+.step .step-screen { font-size: 9px; font-weight: 600; margin-top: 4px; opacity: .6; }
+.arrow {
+  flex-shrink: 0; align-self: center; margin: 0 4px;
+  font-size: 16px; color: #94a3b8;
+}
+.arrow.down { display: none; }
+
+/* 분기 */
+.branch { margin: 12px 0 12px 40px; display: flex; gap: 10px; }
+.branch-item {
+  border-radius: 8px; padding: 8px 12px; flex: 1;
+  font-size: 11px; line-height: 1.4;
+}
+.branch-label { font-weight: 700; font-size: 11px; margin-bottom: 3px; }
+
+/* 노트 */
+.note {
+  border-radius: 8px; padding: 10px 14px;
+  font-size: 12px; line-height: 1.5; margin-top: 12px;
+  border-left: 3px solid;
+}
+.note-teal   { background: var(--teal-bg); border-color: var(--teal); color: var(--teal); }
+.note-amber  { background: var(--amber-bg); border-color: #f59e0b; color: var(--amber); }
+.note-red    { background: var(--red-bg); border-color: #E24B4A; color: var(--red); }
+.note-blue   { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); }
+.note-green  { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+
+/* 스텝 색상 */
+.s-green  { background: var(--green-bg);  color: var(--green); }
+.s-blue   { background: var(--blue-bg);   color: var(--blue); }
+.s-amber  { background: var(--amber-bg);  color: var(--amber); }
+.s-red    { background: var(--red-bg);    color: var(--red); }
+.s-teal   { background: var(--teal-bg);   color: var(--teal); }
+.s-navy   { background: var(--navy-bg);   color: var(--navy-fg); }
+.s-purple { background: var(--purple-bg); color: var(--purple); }
+.s-gray   { background: #F3F4F6;         color: #6B7280; }
+
+/* 에러/예외 테이블 */
+.exception-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+.exception-table th { background: #f1f5f9; font-weight: 600; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border-strong); }
+.exception-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.exception-table tr:last-child td { border-bottom: none; }
+
+/* 시스템 박스 */
+.sys-box {
+  background: var(--navy-bg); color: var(--navy-fg); border-radius: 8px;
+  padding: 7px 12px; font-size: 11px; font-weight: 600;
+  text-align: center; flex-shrink: 0; align-self: center;
+  min-width: 100px;
+}
+
+/* 자동 처리 표시 */
+.auto-badge {
+  background: var(--navy-bg); color: var(--navy-fg);
+  font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 8px;
+  display: inline-block; margin-top: 2px;
+}
+
+.divider { height: 1px; background: var(--border); margin: 20px 0; }
+.sub-label { font-size: 12px; font-weight: 700; color: var(--muted); margin-bottom: 10px; text-transform: uppercase; letter-spacing: .04em; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">맘스세이프 유저플로우</div>
+  <a href="#" class="on" onclick="show('mom',this)">👤 산모</a>
+  <a href="#" onclick="show('center',this)">🏥 보건소 담당자</a>
+  <a href="#" onclick="show('ems',this)">🚑 119 상황실·대원</a>
+  <a href="#" onclick="show('hospital',this)">🛏️ 병원 담당자</a>
+  <a href="/" style="margin-left:auto;font-size:12px;opacity:.6">← 콘솔로 돌아가기</a>
+</nav>
+
+<div class="wrap">
+
+<!-- ═══════════════════════════════════════
+     SECTION 1: 산모
+═══════════════════════════════════════ -->
+<div id="mom" class="section on">
+  <div class="user-banner banner-green">
+    <div class="icon">🤰</div>
+    <div>
+      <h1>산모 (Patient)</h1>
+      <p>모바일 앱(Android/iOS) · 주요 목표: 위험도 관리, 응급 시 빠른 병원 연결</p>
+    </div>
+  </div>
+
+  <!-- 플로우 1: 최초 등록 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-user-plus" style="color:#166534"></i>
+      플로우 1 — 최초 등록 온보딩
+      <span class="badge" style="background:#E2EFDA;color:#166534">최초 1회 · 순차 진행</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-gray">
+        <div class="step-num">STEP 0</div>
+        <div class="step-title">앱 설치</div>
+        <div class="step-desc">스토어에서 맘스세이프 설치</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-green">
+        <div class="step-num">STEP 1</div>
+        <div class="step-title">회원가입</div>
+        <div class="step-desc">이름·연락처·분만예정일·다태아·개인정보 동의</div>
+        <div class="step-screen">APP-001</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">임신 주수<br>자동 계산</div>
+      <div class="arrow">→</div>
+      <div class="step s-green">
+        <div class="step-num">STEP 2</div>
+        <div class="step-title">기본 인적정보</div>
+        <div class="step-desc">임신 주수 확인, 키·몸무게 입력 → BMI 산출</div>
+        <div class="step-screen">APP-002</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red" style="border:1.5px solid #FFCDB2">
+        <div class="step-num">STEP 3</div>
+        <div class="step-title">진료정보입력</div>
+        <div class="step-desc">2트랙 중 선택<br>(진단서 OCR / 직접 입력)</div>
+        <div class="step-screen">APP-003</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">실제위험도<br>산출<br>병원 우선순위<br>계산</div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-num">STEP 4</div>
+        <div class="step-title">홈 도착</div>
+        <div class="step-desc">위험도 요약 + 추천병원 + 메뉴 허브</div>
+        <div class="step-screen">APP-004</div>
+      </div>
+    </div>
+
+    <div class="branch">
+      <div class="branch-item" style="background:#FAECE7;border-left:3px solid #E24B4A">
+        <div class="branch-label" style="color:#993C1D">진단서 OCR 트랙</div>
+        <div style="font-size:11px;color:#37415180">파일 업로드 → OCR/LLM 자동 해석 → 양식 자동 입력 → 산모 확인 후 보정 → 등록 완료</div>
+      </div>
+      <div class="branch-item" style="background:#E6F1FB;border-left:3px solid #185FA5">
+        <div class="branch-label" style="color:#185FA5">직접 입력 트랙</div>
+        <div style="font-size:11px;color:#37415180">위험요소 영역 선택 → 항목 선택 → Grade 자동 매핑 → 등록 완료</div>
+      </div>
+    </div>
+    <div class="note note-teal">
+      <strong>보건소 연동:</strong> 등록 완료 즉시 보건소 대시보드(DASH-001)에 산모가 표시됩니다. 위험도가 HIGH라면 상단에 강조 표시됩니다.
+    </div>
+  </div>
+
+  <!-- 플로우 2: 일상 증상 모니터링 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-edit" style="color:#993C1D"></i>
+      플로우 2 — 일상 증상 모니터링 (증상 일기)
+      <span class="badge" style="background:#FAECE7;color:#993C1D">2트랙 핵심 기능 · 수시 사용</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">홈 진입</div>
+        <div class="step-screen">APP-004</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">증상 일기 메뉴 탭</div>
+        <div class="step-screen">APP-005</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">자유 텍스트 입력</div>
+        <div class="step-desc">또는 빠른 선택 Chip 터치</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">일기 등록</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">LLM<br>임상 신호 분류<br>(Grade 표 기반)</div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">분석 결과 확인</div>
+        <div class="step-desc">감지 신호 + 예비위험도 등급 표시</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sub-label">예비위험도 결과에 따른 분기</div>
+      <div class="branch">
+        <div class="branch-item" style="background:#EAF3DE;border-left:3px solid #166534">
+          <div class="branch-label" style="color:#166534">LOW — 정상</div>
+          특이 신호 없음. 일기가 기록에 저장됨. 다음 입력까지 별도 처리 없음.
+        </div>
+        <div class="branch-item" style="background:#FAEEDA;border-left:3px solid #f59e0b">
+          <div class="branch-label" style="color:#854F0B">MEDIUM — 병원방문 권고</div>
+          산모 앱 푸시 알림 발송 + 보건소 대시보드 예비위험도 알림 배지 증가(DASH-003)
+        </div>
+        <div class="branch-item" style="background:#FCEBEB;border-left:3px solid #E24B4A">
+          <div class="branch-label" style="color:#A32D2D">HIGH — 즉각 병원 방문</div>
+          산모 앱 긴급 푸시 발송 + 보건소 즉시 플래그 + 병원방문 권고 알림 내역 생성
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sub-label">MEDIUM·HIGH 이후 후속 흐름</div>
+      <div class="flow-row">
+        <div class="step s-gray">
+          <div class="step-title">알림 수신</div>
+          <div class="step-screen">APP-007</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-gray">
+          <div class="step-title">알림 내역 확인</div>
+          <div class="step-desc">감지 신호, 권고 내용</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-gray">
+          <div class="step-title">추천병원 확인</div>
+          <div class="step-desc">홈 화면에서 1~3순위 확인</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-gray">
+          <div class="step-title">병원 방문</div>
+          <div class="step-desc">(오프라인)</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-green">
+          <div class="step-title">방문 완료 처리</div>
+          <div class="step-desc">알림 내역에서 "방문 완료" 탭</div>
+          <div class="step-screen">APP-007</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="sys-box">보건소<br>미방문 목록에서<br>자동 제거</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 3: 체류지 변경 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-map-pin" style="color:#1D4ED8"></i>
+      플로우 3 — 체류지역 변경 (이동형 프로필)
+      <span class="badge" style="background:#EFF6FF;color:#1D4ED8">3대 차별화 포인트</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">홈 → 체류지 메뉴</div>
+        <div class="step-screen">APP-006</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">임시체류지 선택</div>
+        <div class="step-desc">주소 검색, 체류 종료일 설정</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">업데이트 버튼</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">권역 코드<br>재계산<br>병원 우선순위<br>재배정</div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">홈 복귀</div>
+        <div class="step-desc">새 권역 기준 추천병원 갱신 확인</div>
+        <div class="step-screen">APP-004</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">보건소 위치<br>이탈 아이콘<br>자동 표시<br>권역 SMS 발송</div>
+    </div>
+    <div class="note note-blue">
+      <strong>만료 처리:</strong> 체류 종료일 도달 시 시스템이 자동으로 location_type을 HOME으로 복귀시키고 병원 우선순위를 원래 거주지 기준으로 재계산합니다.
+    </div>
+  </div>
+
+  <!-- 플로우 4: 진료정보 갱신 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-file-medical" style="color:#993C1D"></i>
+      플로우 4 — 진료정보 갱신 (온보딩 이후)
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">홈 → 진료정보입력 메뉴</div>
+        <div class="step-screen">APP-003 재진입</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">새 진단서 업로드<br>또는 항목 추가 입력</div>
+        <div class="step-desc">기존 등록 정보 유지, 추가/수정</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">생체신호 정기 입력</div>
+        <div class="step-desc">혈압·혈당·체중 입력</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">임계값 초과 시<br>RISK_ASSESSMENT<br>갱신<br>보건소 알림</div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">홈 복귀</div>
+        <div class="step-desc">갱신된 위험도 확인</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 예외 상황 -->
+  <div class="flow-section">
+    <div class="flow-title"><i class="ti ti-alert-triangle" style="color:#A32D2D"></i>예외 상황 처리</div>
+    <table class="exception-table">
+      <thead><tr><th>상황</th><th>화면 안내 문구</th><th>후속 처리</th></tr></thead>
+      <tbody>
+        <tr><td>중복 연락처 가입 시도</td><td>이미 등록된 번호입니다. 로그인 화면으로 이동합니다.</td><td>로그인 화면으로 리다이렉트</td></tr>
+        <tr><td>OCR 진단서 해석 실패</td><td>진단서를 인식하지 못했습니다. 직접 입력으로 전환해주세요.</td><td>직접 입력 탭으로 자동 전환</td></tr>
+        <tr><td>LLM 분석 실패</td><td>분석 중 오류가 발생했습니다. 원문은 저장되었습니다.</td><td>원문은 저장, 등급 미산출</td></tr>
+        <tr><td>주소 검색 실패</td><td>주소를 찾을 수 없습니다. 직접 입력해주세요.</td><td>수동 입력 필드 활성화</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SECTION 2: 보건소 담당자
+═══════════════════════════════════════ -->
+<div id="center" class="section">
+  <div class="user-banner banner-blue">
+    <div class="icon">🏥</div>
+    <div>
+      <h1>보건소 담당자 (Public Health Officer)</h1>
+      <p>PC 웹 대시보드 · 주요 목표: 관할 산모 선제적 모니터링, 미방문 추적 관리</p>
+    </div>
+  </div>
+
+  <!-- 플로우 1: 일상 모니터링 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-layout-dashboard" style="color:#1D4ED8"></i>
+      플로우 1 — 일상 관제 루틴
+      <span class="badge" style="background:#EFF6FF;color:#1D4ED8">매일 업무 시작 시 진행</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">로그인</div>
+        <div class="step-desc">보건소 계정으로 접속</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">산모 현황 목록</div>
+        <div class="step-desc">전체 등록 산모 확인</div>
+        <div class="step-screen">DASH-001</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">예비위험도 알림 배지 확인</div>
+        <div class="step-desc">붉은 배지 수 = 미방문 산모</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">필터 조회</div>
+        <div class="step-desc">HIGH / MEDIUM / 지역이탈 필터</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">우선 관리 대상 산모 행 클릭</div>
+        <div class="step-desc">DASH-002로 이동</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">산모 상세 프로필 확인</div>
+        <div class="step-desc">위험요소·생체정보 추이·증상일기 요약</div>
+        <div class="step-screen">DASH-002</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 2: 예비위험도 알림 처리 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-bell-ringing" style="color:#A32D2D"></i>
+      플로우 2 — 예비위험도 알림 수신 및 미방문 산모 추적
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">DASH-001</div>
+        <div class="step-desc">예비위험도 알림 배지 클릭</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">미방문 산모 목록</div>
+        <div class="step-desc">권고 발송일·감지 신호·경과일수 확인</div>
+        <div class="step-screen">DASH-003</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">경과일 길수록 빨간색</div>
+        <div class="step-desc">긴급도 시각적 확인</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sub-label">경과 일수에 따른 대응</div>
+      <div class="branch">
+        <div class="branch-item" style="background:#FAEEDA;border-left:3px solid #f59e0b">
+          <div class="branch-label" style="color:#854F0B">1~2일 경과</div>
+          산모에게 앱 알림 재발송. 메모 작성 후 대기.
+        </div>
+        <div class="branch-item" style="background:#FCEBEB;border-left:3px solid #E24B4A">
+          <div class="branch-label" style="color:#A32D2D">3일 이상 경과</div>
+          전화 안부콜 실시 → 메모에 상담 내용 기록 → 필요 시 방문 조치 요청
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="flow-row">
+        <div class="step s-blue">
+          <div class="step-title">전화 안부콜 실시</div>
+          <div class="step-desc">(오프라인)</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-blue">
+          <div class="step-title">보건소 메모 입력</div>
+          <div class="step-desc">상담 내용 기록</div>
+          <div class="step-screen">DASH-003</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-blue">
+          <div class="step-title">방문 확인 처리</div>
+          <div class="step-desc">✓ 버튼 클릭</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="sys-box">SYMPTOM_DIARY<br>visit_confirmed<br>= TRUE<br>목록에서 제거</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 3: 신규 산모 등록 알림 수신 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-user-check" style="color:#1D4ED8"></i>
+      플로우 3 — 신규 산모 등록 알림 수신
+    </div>
+    <div class="flow-row">
+      <div class="sys-box">산모가<br>APP-003<br>등록 완료</div>
+      <div class="arrow">→</div>
+      <div class="sys-box">DASH-001<br>자동 플래그<br>표시</div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">DASH-001</div>
+        <div class="step-desc">신규 산모 행 확인 (강조 표시)</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">DASH-002</div>
+        <div class="step-desc">상세 프로필로 진입하여 등록 정보 검토</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">첫 안부 메모 작성</div>
+        <div class="step-desc">관리 시작 기록</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 4: 지역 인프라 모니터링 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-map" style="color:#1D4ED8"></i>
+      플로우 4 — 지역 인프라 현황 확인
+      <span class="badge" style="background:#EFF6FF;color:#1D4ED8">주기적 확인 또는 응급 대응 준비 시</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-blue">
+        <div class="step-title">DASH-001</div>
+        <div class="step-desc">지역 인프라 탭 클릭</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">DASH-004</div>
+        <div class="step-desc">병원 분포 지도 확인, 분만취약지 오버레이</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">병원 핀 클릭</div>
+        <div class="step-desc">NICU 병상 수, 고위험 전문 여부 확인</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-blue">
+        <div class="step-title">위험도 분포 Bar Chart</div>
+        <div class="step-desc">관할 구역 HIGH/MED/LOW 산모 비율 파악</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <div class="flow-title"><i class="ti ti-alert-triangle" style="color:#A32D2D"></i>예외 상황 처리</div>
+    <table class="exception-table">
+      <thead><tr><th>상황</th><th>화면 안내</th><th>처리</th></tr></thead>
+      <tbody>
+        <tr><td>산모 데이터 없음</td><td>등록된 산모가 없습니다.</td><td>신규 등록 안내 배너 표시</td></tr>
+        <tr><td>미방문 알림 0건</td><td>미확인 알림이 없습니다.</td><td>정상 상태 표시</td></tr>
+        <tr><td>지도 로드 실패</td><td>지도를 불러오는 중 오류가 발생했습니다.</td><td>새로고침 버튼 제공</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SECTION 3: 119 상황실·대원
+═══════════════════════════════════════ -->
+<div id="ems" class="section">
+  <div class="user-banner banner-amber">
+    <div class="icon">🚑</div>
+    <div>
+      <h1>119 상황실 & 구급대원 (EMS)</h1>
+      <p>상황실: PC 모니터 · 현장 대원: 태블릿(1024×768 가로형) · 목표: 골든타임 내 최적 병원 연결</p>
+    </div>
+  </div>
+
+  <!-- 플로우 1: 신고 접수 → 출동 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-phone-call" style="color:#92400E"></i>
+      플로우 1 — 신고 접수부터 현장 출동까지 (상황실)
+      <span class="badge" style="background:#FFFBEB;color:#92400E">119 상황실 PC</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-amber">
+        <div class="step-title">신고 전화 수신</div>
+        <div class="step-desc">산모 또는 주변인이 119 신고</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-amber">
+        <div class="step-title">산모 여부 확인</div>
+        <div class="step-desc">고위험 산모인지 문답 확인</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-amber">
+        <div class="step-title">출동 지시</div>
+        <div class="step-desc">가장 가까운 구급차 배차</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-amber">
+        <div class="step-title">맘스세이프 사전 조회</div>
+        <div class="step-desc">이름·연락처로 등록 여부 확인</div>
+        <div class="step-screen">EMS-001</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">위험요소·추천병원 확인 후 대원에게 전달</div>
+      </div>
+    </div>
+    <div class="note note-teal">
+      <strong>미등록 산모:</strong> 맘스세이프에 등록되지 않은 산모라면 EMS-001에 "미등록 산모" 안내가 표시됩니다. 이 경우 e-Gen 중앙응급의료센터를 통해 수동으로 병원을 탐색해야 합니다.
+    </div>
+  </div>
+
+  <!-- 플로우 2: 현장 대응 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-ambulance" style="color:#92400E"></i>
+      플로우 2 — 현장 도착 → SOS 발송 (구급대원, 태블릿)
+      <span class="badge" style="background:#FFFBEB;color:#92400E">현장 태블릿</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-amber">
+        <div class="step-title">현장 도착</div>
+        <div class="step-desc">태블릿에서 EMS-001 오픈</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-amber">
+        <div class="step-title">산모 즉시 조회</div>
+        <div class="step-desc">이름 + 연락처 뒤4자리 입력</div>
+        <div class="step-screen">EMS-001</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">위험요소·위험도 확인</div>
+        <div class="step-desc">Grade, 기저질환명, 추천병원 1~3순위</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-amber">
+        <div class="step-title">현장 증상 추가 입력</div>
+        <div class="step-desc">출혈·경련·양수파수 등 체크, 의식 수준 선택</div>
+        <div class="step-screen">EMS-002</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">수용 요청 발송</div>
+        <div class="step-desc">1순위 병원에 SOS 자동 발송</div>
+      </div>
+    </div>
+    <div class="note note-amber">
+      <strong>현장 증상 추가(EMS-002) 선택 사항:</strong> 시간이 촉박할 경우 EMS-001의 SOS 버튼을 바로 눌러도 됩니다. EMS-002는 더 정확한 현장 정보를 병원에 전달하기 위한 단계입니다.
+    </div>
+  </div>
+
+  <!-- 플로우 3: 릴레이 모니터링 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-arrows-right-left" style="color:#A32D2D"></i>
+      플로우 3 — 병원 릴레이 모니터링
+      <span class="badge" style="background:#FFFBEB;color:#92400E">3대 차별화 포인트</span>
+    </div>
+    <div class="flow-row">
+      <div class="step s-amber">
+        <div class="step-title">릴레이 화면 진입</div>
+        <div class="step-desc">SOS 발송 직후 자동 전환</div>
+        <div class="step-screen">EMS-003</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">1순위 병원<br>응답 대기</div>
+        <div class="step-desc">Step 1 활성화, 카운터 시작</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sub-label">1순위 응답에 따른 분기</div>
+      <div class="branch">
+        <div class="branch-item" style="background:#EAF3DE;border-left:3px solid #166534">
+          <div class="branch-label" style="color:#166534">수용 ✓</div>
+          수용 확정 배너 표시 (병원명·ETA·담당 연락처) → 이송 진행
+        </div>
+        <div class="branch-item" style="background:#FCEBEB;border-left:3px solid #E24B4A">
+          <div class="branch-label" style="color:#A32D2D">거절 ✗</div>
+          거절 사유 표시 → 자동으로 2순위 병원에 동일 정보 즉시 전달 → Step 2 활성화
+        </div>
+        <div class="branch-item" style="background:#FAEEDA;border-left:3px solid #f59e0b">
+          <div class="branch-label" style="color:#854F0B">90초 타임아웃</div>
+          미응답 → 자동으로 다음 순위 전달 "자동으로 다음 순위 병원에 요청합니다" 토스트
+        </div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="flow-row">
+        <div class="step s-red">
+          <div class="step-title">2순위 요청 중</div>
+          <div class="step-desc">Step 2 활성화, 카운터 재시작</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-red">
+          <div class="step-title">3순위까지 반복</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-green">
+          <div class="step-title">수용 확정</div>
+          <div class="step-desc">수용 확정 배너 (초록)</div>
+        </div>
+        <div class="arrow">→</div>
+        <div class="step s-amber">
+          <div class="step-title">이송 진행</div>
+          <div class="step-desc">수용 병원으로 출발</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="note note-red">
+      <strong>전체 거절 시 (3순위까지 모두 거절):</strong> "현재 권역 내 추천 병원이 모두 수용 불가입니다. 소방청 중앙구급상황관리센터에 연락하세요." + e-Gen 바로가기 버튼 표시
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <div class="flow-title"><i class="ti ti-alert-triangle" style="color:#A32D2D"></i>예외 상황 처리</div>
+    <table class="exception-table">
+      <thead><tr><th>상황</th><th>화면 안내</th><th>처리</th></tr></thead>
+      <tbody>
+        <tr><td>산모 미등록</td><td>맘스세이프에 등록되지 않은 산모입니다. 직접 병원을 탐색해주세요.</td><td>e-Gen 바로가기 제공</td></tr>
+        <tr><td>추천 병원 없음</td><td>현재 권역 내 수용 가능 병원 정보가 없습니다.</td><td>e-Gen 직접 링크 제공</td></tr>
+        <tr><td>90초 타임아웃</td><td>병원으로부터 응답이 없습니다. 자동으로 다음 순위 병원에 요청합니다.</td><td>자동 다음 순위 전달</td></tr>
+        <tr><td>3순위 모두 거절</td><td>현재 권역 내 추천 병원이 모두 수용 불가입니다.</td><td>소방청 상황관리센터 연결 안내</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     SECTION 4: 병원 담당자
+═══════════════════════════════════════ -->
+<div id="hospital" class="section">
+  <div class="user-banner banner-purple">
+    <div class="icon">🛏️</div>
+    <div>
+      <h1>병원 응급실 당직의 (Hospital Staff)</h1>
+      <p>PC + 태블릿 · 목표: 수용 가능 여부를 90초 안에 판단하고 응답</p>
+    </div>
+  </div>
+
+  <!-- 플로우 1: 수용 요청 수신 → 응답 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-bell" style="color:#6B21A8"></i>
+      플로우 1 — 수용 요청 수신 및 응답
+      <span class="badge" style="background:#FDF4FF;color:#6B21A8">핵심 플로우 · 90초 제한</span>
+    </div>
+    <div class="flow-row">
+      <div class="sys-box">119가<br>SOS 발송<br>(EMERGENCY_REQUEST<br>생성)</div>
+      <div class="arrow">→</div>
+      <div class="step s-purple">
+        <div class="step-title">수용 요청 알림 수신</div>
+        <div class="step-desc">병원 대시보드 팝업 또는 시스템 알림</div>
+        <div class="step-screen">EMS-004</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-purple">
+        <div class="step-title">산모 정보 브리핑 확인</div>
+        <div class="step-desc">이름(마스킹)·임신주수·위험요소·Grade·현장증상</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">90초 카운트다운 시작</div>
+        <div class="step-desc">미응답 시 자동 타임아웃 처리</div>
+      </div>
+    </div>
+
+    <div style="margin-top:14px">
+      <div class="sub-label">의사 판단 → 수용 또는 거절</div>
+      <div class="branch">
+        <div class="branch-item" style="background:#EAF3DE;border-left:3px solid #166534">
+          <div class="branch-label" style="color:#166534">수용 ✓ 클릭</div>
+          HOSPITAL_RESPONSE INSERT (ACCEPT) → 119 EMS-003에 수용 확정 배너 즉시 표시 → EMERGENCY_REQUEST.request_status = ACCEPTED → 응급실 준비 시작
+        </div>
+        <div class="branch-item" style="background:#FCEBEB;border-left:3px solid #E24B4A">
+          <div class="branch-label" style="color:#A32D2D">거절 ✗ 클릭</div>
+          거절 사유 선택 모달 표시 → 사유 선택(수술실 부족/전문의 부재/NICU 만실/기타) → 거절 확정 → 다음 순위 병원에 자동 전달
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 2: 상세 정보 확인 후 판단 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-file-info" style="color:#6B21A8"></i>
+      플로우 2 — 산모 상세 정보 확인 후 판단 (90초 내)
+    </div>
+    <div class="flow-row">
+      <div class="step s-purple">
+        <div class="step-title">요청 수신</div>
+        <div class="step-screen">EMS-004</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-purple">
+        <div class="step-title">기본 브리핑 카드 확인</div>
+        <div class="step-desc">마스킹 정보로 대략적 파악</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-purple">
+        <div class="step-title">상세 정보 펼치기 ▼</div>
+        <div class="step-desc">생체정보·기저질환 전체 내역 확인 (Expandable)</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-purple">
+        <div class="step-title">수용 가능 여부 내부 판단</div>
+        <div class="step-desc">NICU 병상·산과 전문의 가용 여부</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-green">
+        <div class="step-title">수용 또는 거절</div>
+        <div class="step-desc">90초 내 응답</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 플로우 3: 타임아웃 처리 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-clock" style="color:#A32D2D"></i>
+      플로우 3 — 90초 타임아웃 처리 (자동)
+    </div>
+    <div class="flow-row">
+      <div class="step s-purple">
+        <div class="step-title">수용 요청 수신</div>
+        <div class="step-screen">EMS-004</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-red">
+        <div class="step-title">90초 경과</div>
+        <div class="step-desc">당직의 응답 없음</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">HOSPITAL_RESPONSE<br>INSERT<br>(TIMEOUT)</div>
+      <div class="arrow">→</div>
+      <div class="sys-box">다음 순위 병원에<br>자동 전달</div>
+      <div class="arrow">→</div>
+      <div class="step s-gray">
+        <div class="step-title">해당 병원 화면</div>
+        <div class="step-desc">"이미 처리된 요청입니다" 안내</div>
+      </div>
+    </div>
+    <div class="note note-amber">
+      <strong>타임아웃 후 수용 시도:</strong> 90초 이후 당직의가 수용 버튼을 눌러도 "이미 다른 병원이 수용 확정한 요청입니다"로 처리됩니다. 중복 수용 방지를 위한 안전장치입니다.
+    </div>
+  </div>
+
+  <!-- 플로우 4: 수용 확정 후 준비 -->
+  <div class="flow-section">
+    <div class="flow-title">
+      <i class="ti ti-check" style="color:#166534"></i>
+      플로우 4 — 수용 확정 후 응급실 준비
+    </div>
+    <div class="flow-row">
+      <div class="step s-green">
+        <div class="step-title">수용 확정 클릭</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="sys-box">119 EMS-003<br>수용 확정 배너<br>즉시 표시<br>ETA 제공</div>
+      <div class="arrow">→</div>
+      <div class="step s-green">
+        <div class="step-title">응급실 내부 준비</div>
+        <div class="step-desc">산과 전문의 호출, NICU 준비, 수술실 대기</div>
+        <div class="step-desc">(오프라인)</div>
+      </div>
+      <div class="arrow">→</div>
+      <div class="step s-green">
+        <div class="step-title">산모 이송 수령</div>
+        <div class="step-desc">구급차 도착 → 위험요소·위험도 정보 인계</div>
+        <div class="step-desc">(오프라인)</div>
+      </div>
+    </div>
+    <div class="note note-green">
+      <strong>병원의 핵심 이점:</strong> 기존에는 119 전화를 받고 구두로만 환자 상태를 파악했지만, 맘스세이프를 통해 수용 판단 전 이미 기저질환·Grade·현장증상을 시각적으로 확인할 수 있어 더 정확한 판단이 가능합니다.
+    </div>
+  </div>
+
+  <div class="flow-section">
+    <div class="flow-title"><i class="ti ti-alert-triangle" style="color:#A32D2D"></i>예외 상황 처리</div>
+    <table class="exception-table">
+      <thead><tr><th>상황</th><th>화면 안내</th><th>처리</th></tr></thead>
+      <tbody>
+        <tr><td>90초 타임아웃</td><td>응답 시간이 초과되었습니다.</td><td>자동 다음 순위 전달</td></tr>
+        <tr><td>이미 처리된 요청에 응답 시도</td><td>이미 다른 병원이 수용 확정한 요청입니다.</td><td>응답 차단, 안내 표시</td></tr>
+        <tr><td>네트워크 오류</td><td>네트워크 연결이 불안정합니다. 직접 119에 연락해주세요.</td><td>119 직통 연락처 표시</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div>
+
+<script>
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  document.querySelectorAll('nav a').forEach(a => a.classList.remove('on'));
+  el.classList.add('on');
+  window.scrollTo(0, 0);
+  return false;
+}
+</script>
+</body>
+</html>

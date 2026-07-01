@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>맘스세이프 — 통합 기획 리뷰 보드 v3.0</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.36.0/tabler-icons.min.css">
+<style>
+:root {
+  --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --surface-1: #ffffff;
+  --surface-2: #f8fafc;
+  --surface-3: #f1f5f9;
+  --border: #e2e8f0;
+  --border-strong: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #64748b;
+  --text-accent: #1e40af;
+  --bg-accent: #dbeafe;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); background: #e2e8f0; color: var(--text-primary); }
+
+/* ── 상단 네비게이션 ── */
+.top-nav {
+  position: sticky; top: 0; z-index: 100;
+  background: #1e293b;
+  padding: 0 32px;
+  display: flex; align-items: center; gap: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.2);
+}
+.top-nav .logo { color: #5EEAD4; font-weight: 700; font-size: 14px; padding: 14px 0; margin-right: 20px; }
+.top-nav a {
+  color: #94a3b8; font-size: 13px; font-weight: 500;
+  padding: 14px 14px; text-decoration: none; border-bottom: 2px solid transparent;
+  transition: color .15s, border-color .15s;
+}
+.top-nav a:hover { color: #e2e8f0; }
+.top-nav a.active { color: #5EEAD4; border-bottom-color: #5EEAD4; }
+
+/* ── 컨테이너 ── */
+.container {
+  max-width: 1200px; margin: 28px auto; padding: 40px;
+  background: var(--surface-1); border-radius: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.08);
+}
+.section { display: none; }
+.section.active { display: block; }
+
+/* ── 섹션 헤더 ── */
+.section-header { margin-bottom: 28px; }
+.section-header h1 { font-size: 26px; font-weight: 700; color: var(--text-primary); margin-bottom: 6px; }
+.section-header p { font-size: 14px; color: var(--text-muted); }
+.section-title {
+  font-size: 16px; font-weight: 700; color: #1e293b;
+  padding-bottom: 10px; margin: 36px 0 18px;
+  border-bottom: 2px solid var(--border-strong);
+}
+
+/* ── 공통 와이어프레임 ── */
+.wf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.wf-card {
+  border: 1px solid var(--border-strong); border-radius: 14px;
+  padding: 16px; background: var(--surface-1);
+  box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.wf-id {
+  font-size: 11px; font-weight: 600; color: var(--text-accent); background: var(--bg-accent);
+  display: inline-block; padding: 3px 10px; border-radius: 12px; margin-bottom: 10px;
+}
+.wf-id.coral  { color: #993C1D; background: #FAECE7; }
+.wf-id.amber  { color: #854F0B; background: #FAEEDA; }
+.wf-id.green  { color: #166534; background: #EAF3DE; }
+.wf-id.purple { color: #3C3489; background: #EEEDFE; }
+.wf-box {
+  border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface-2);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-secondary); font-size: 11.5px; text-align: center;
+  padding: 5px 6px; line-height: 1.3;
+}
+.wf-col { display: flex; flex-direction: column; gap: 7px; }
+.wf-row { display: flex; gap: 7px; }
+.wf-btn {
+  border-radius: 7px; display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 600; padding: 7px;
+}
+
+/* ── 디자인 가이드 전용 ── */
+.guide-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.guide-section {
+  background: var(--surface-2); border-radius: 12px;
+  padding: 18px; border: 1px solid var(--border);
+}
+.guide-label {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .06em;
+  margin-bottom: 14px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.color-chip {
+  height: 38px; border-radius: 8px; display: flex; align-items: center;
+  padding: 0 12px; font-size: 12px; font-weight: 600; margin-bottom: 7px;
+}
+.badge {
+  display: inline-block; font-size: 11px; font-weight: 600;
+  padding: 4px 12px; border-radius: 20px; margin: 2px;
+}
+.tab-bar {
+  display: flex; gap: 3px; background: var(--border);
+  padding: 3px; border-radius: 10px; margin-bottom: 8px;
+}
+.tab {
+  flex: 1; text-align: center; font-size: 12px;
+  padding: 7px; border-radius: 7px; color: var(--text-secondary);
+}
+.tab.active {
+  background: white; color: var(--text-primary);
+  font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,.1);
+}
+.step-row { display: flex; align-items: center; gap: 0; margin-bottom: 12px; }
+.step-box {
+  flex: 1; border-radius: 8px; padding: 10px 8px;
+  text-align: center; font-size: 12px; line-height: 1.3; font-weight: 500;
+}
+.step-arrow { width: 22px; flex-shrink: 0; text-align: center; font-size: 14px; color: #94a3b8; }
+.alert-card {
+  border-radius: 8px; padding: 10px 14px; margin-bottom: 7px;
+  font-size: 12px; line-height: 1.4;
+}
+.menu-row { display: flex; gap: 8px; margin-top: 8px; }
+.menu-item {
+  flex: 1; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 10px 4px; text-align: center;
+  font-size: 11px; color: var(--text-secondary);
+}
+.menu-item i { display: block; font-size: 18px; color: #1e40af; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<!-- 상단 네비게이션 -->
+<nav class="top-nav">
+  <div class="logo">맘스세이프 리뷰 보드</div>
+  <a href="#" class="active" onclick="show('design', this)">디자인 가이드</a>
+  <a href="#" onclick="show('flow', this)">유저플로우</a>
+  <a href="#" onclick="show('app', this)">산모 앱</a>
+  <a href="#" onclick="show('dash', this)">보건소</a>
+  <a href="#" onclick="show('ems', this)">119·병원</a>
+  <a href="/" style="margin-left:auto;font-size:12px;opacity:.6">← 콘솔로 돌아가기</a>
+</nav>
+
+<div class="container">
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 1: 디자인 가이드
+══════════════════════════════════════════════════════ -->
+<div id="design" class="section active">
+  <div class="section-header">
+    <h1>디자인 시스템 & 컴포넌트 가이드</h1>
+    <p>맘스세이프 v3.0 — 색상·배지·탭·버튼·릴레이 컴포넌트 정의</p>
+  </div>
+
+  <div class="guide-grid">
+    <!-- 색상: 위험도 -->
+    <div class="guide-section">
+      <div class="guide-label">위험도 색상</div>
+      <div class="color-chip" style="background:#FCEBEB;color:#A32D2D">HIGH — 실제위험도 높음</div>
+      <div class="color-chip" style="background:#FAEEDA;color:#854F0B">MEDIUM — 위험 징후</div>
+      <div class="color-chip" style="background:#EAF3DE;color:#3B6D11">LOW — 정상/안정</div>
+      <div class="color-chip" style="background:#EEEDFE;color:#3C3489">예비위험도 (LLM 감지)</div>
+    </div>
+
+    <!-- 색상: 입력방식·사용자 -->
+    <div class="guide-section">
+      <div class="guide-label">입력 방식 & 사용자 구분</div>
+      <div class="color-chip" style="background:#FAECE7;color:#993C1D">진단서 OCR 트랙 (코랄)</div>
+      <div class="color-chip" style="background:#E6F1FB;color:#185FA5">직접 입력 트랙 (블루)</div>
+      <div class="color-chip" style="background:#EAF3DE;color:#166534">산모 앱 (그린)</div>
+      <div class="color-chip" style="background:#EFF6FF;color:#1D4ED8">보건소 대시보드 (파랑)</div>
+      <div class="color-chip" style="background:#FFFBEB;color:#92400E">119·병원 (주황)</div>
+    </div>
+
+    <!-- 위험도 배지 -->
+    <div class="guide-section">
+      <div class="guide-label">위험도 배지</div>
+      <div style="margin-bottom:10px">
+        <span class="badge" style="background:#FCEBEB;color:#A32D2D">HIGH</span>
+        <span class="badge" style="background:#FAEEDA;color:#854F0B">MEDIUM</span>
+        <span class="badge" style="background:#EAF3DE;color:#3B6D11">LOW</span>
+        <span class="badge" style="background:#EEEDFE;color:#3C3489">예비 HIGH</span>
+        <span class="badge" style="background:#F3F4F6;color:#6B7280">미입력</span>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted)">
+        실제위험도 + 예비위험도를 항상 나란히 표시.<br>예비위험도는 최근 7일 입력 없으면 미표시.
+      </div>
+    </div>
+
+    <!-- 2트랙 탭 -->
+    <div class="guide-section">
+      <div class="guide-label">진료정보입력 2트랙 탭 (APP-003)</div>
+      <div class="tab-bar">
+        <div class="tab active">진단서로 등록하기</div>
+        <div class="tab">직접 입력</div>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted)">
+        기본값: 진단서 탭 (OCR 트랙 우선 노출 — 신뢰 확보)<br>
+        두 방식 모두 같은 PATIENT_DISEASE 테이블에 저장.<br>
+        input_method 필드로 방식 구분 (ERD v3.1)
+      </div>
+    </div>
+
+    <!-- 버튼 -->
+    <div class="guide-section">
+      <div class="guide-label">버튼 컴포넌트</div>
+      <div class="wf-col" style="gap:8px">
+        <div class="wf-btn" style="background:#1e40af;color:#fff">Primary — 등록 완료</div>
+        <div class="wf-btn" style="background:#E24B4A;color:#fff">Danger — SOS 발송</div>
+        <div class="wf-btn" style="background:#EAF3DE;color:#166534;border:1px solid #A7D7A0">Success — 수용 확정</div>
+        <div class="wf-btn" style="border:1px solid var(--border-strong);color:var(--text-primary)">Ghost — 거절</div>
+      </div>
+    </div>
+
+    <!-- 알림 카드 -->
+    <div class="guide-section">
+      <div class="guide-label">알림 카드 컴포넌트</div>
+      <div class="alert-card" style="background:#FCEBEB;border-left:3px solid #E24B4A;color:#A32D2D">
+        <strong>긴급</strong> — 병원방문 권고 미확인 3일 경과<br>
+        <span style="font-size:11px">감지 신호: 두통 · 시야장애 · 부종</span>
+      </div>
+      <div class="alert-card" style="background:#FAEEDA;border-left:3px solid #F59E0B;color:#854F0B">
+        <strong>예비위험도 상향</strong> — 병원방문 권고<br>
+        <span style="font-size:11px">임신성 고혈압 환자 · 두통 반복 감지</span>
+      </div>
+    </div>
+
+    <!-- 병원 릴레이 스텝 -->
+    <div class="guide-section" style="grid-column:span 2">
+      <div class="guide-label">병원 릴레이 Step Indicator (EMS-003)</div>
+      <div class="step-row">
+        <div class="step-box" style="background:#EFF6FF;color:#1D4ED8">1순위<br><span style="font-size:10px;color:#A32D2D">거절 — NICU 만실</span></div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FAEEDA;color:#854F0B">2순위<br><span style="font-size:10px">요청 중… (45초)</span></div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#F3F4F6;color:#6B7280">3순위<br><span style="font-size:10px">대기</span></div>
+      </div>
+      <div class="alert-card" style="background:#FAEEDA;border-left:3px solid #F59E0B;color:#854F0B;font-size:11px">
+        90초 타임아웃 카운터 — 미응답 시 자동으로 다음 순위 병원에 전달
+      </div>
+    </div>
+
+    <!-- 홈 메뉴 아이콘 -->
+    <div class="guide-section">
+      <div class="guide-label">홈 화면 메뉴 아이콘 행 (APP-004)</div>
+      <div class="menu-row">
+        <div class="menu-item"><i class="ti ti-edit"></i>증상일기</div>
+        <div class="menu-item"><i class="ti ti-file-medical"></i>진료정보</div>
+        <div class="menu-item"><i class="ti ti-map-pin"></i>체류지</div>
+        <div class="menu-item"><i class="ti ti-bell"></i>알림</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 2: 유저플로우
+══════════════════════════════════════════════════════ -->
+<div id="flow" class="section">
+  <div class="section-header">
+    <h1>산모 앱 유저플로우 v3.0</h1>
+    <p>온보딩 4단계 → 홈 → 5개 화면 분기 구조</p>
+  </div>
+
+  <div class="guide-section" style="margin-bottom:20px">
+    <div class="guide-label">온보딩 흐름 (최초 1회)</div>
+    <div class="step-row">
+      <div class="step-box" style="background:#EAF3DE;color:#166534">APP-001<br>회원가입/등록</div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:#EAF3DE;color:#166534">APP-002<br>기본 인적정보</div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:#FAECE7;color:#993C1D;border:1.5px solid #FFCDB2">APP-003<br>진료정보입력<br><span style="font-size:10px">2트랙</span></div>
+      <div class="step-arrow">→</div>
+      <div class="step-box" style="background:#EFF6FF;color:#1D4ED8;border:1.5px solid #BFDBFE">APP-004<br>홈 (메인)</div>
+    </div>
+  </div>
+
+  <div class="guide-section" style="margin-bottom:20px">
+    <div class="guide-label">홈에서 분기 — 언제든 진입 가능 (상시)</div>
+    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:12px">
+      <div class="wf-box" style="background:#FAECE7;color:#993C1D;border-color:#FFCDB2;padding:12px;border-width:1.5px">APP-005<br>증상일기<br><span style="font-size:10px">2트랙 핵심</span></div>
+      <div class="wf-box" style="background:#FAECE7;color:#993C1D;border-style:dashed;padding:12px">APP-003<br>진료정보입력<br><span style="font-size:10px">갱신 재진입</span></div>
+      <div class="wf-box" style="background:#EFF6FF;color:#1D4ED8;padding:12px">APP-006<br>체류지역<br>업데이트</div>
+      <div class="wf-box" style="background:#F3F4F6;color:#6B7280;padding:12px">APP-007<br>알림 내역</div>
+      <div class="wf-box" style="background:#EEEDFE;color:#3C3489;padding:12px">APP-008<br>내 현재상태<br>(세부)</div>
+    </div>
+    <div style="font-size:12px;color:var(--text-muted)">
+      ※ APP-008은 홈 화면의 위험도 요약 카드를 탭할 때만 진입 &nbsp;|&nbsp;
+      APP-006 업데이트 완료 시 홈으로 복귀 &nbsp;|&nbsp;
+      APP-005 예비위험도 MEDIUM↑ → APP-007 알림 자동 발송
+    </div>
+  </div>
+
+  <div class="guide-section">
+    <div class="guide-label">3개 시나리오 흐름 요약</div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#166534;margin-bottom:6px">흐름 1 — 평시 모니터링</div>
+      <div class="step-row">
+        <div class="step-box" style="background:#EAF3DE;color:#166534">산모 등록</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EAF3DE;color:#166534">진료정보입력</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#1e293b;color:#5EEAD4">실제위험도 산출</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EFF6FF;color:#1D4ED8">보건소 표시</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FAECE7;color:#993C1D">증상일기 입력</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EEEDFE;color:#3C3489">예비위험도 산출</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EFF6FF;color:#1D4ED8">보건소 알림</div>
+      </div>
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:#1D4ED8;margin-bottom:6px">흐름 2 — 이동형 프로필</div>
+      <div class="step-row">
+        <div class="step-box" style="background:#EAF3DE;color:#166534">체류지 업데이트</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#1e293b;color:#5EEAD4">권역 재계산</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#1e293b;color:#5EEAD4">병원 우선순위 재배정</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EFF6FF;color:#1D4ED8">보건소 위치 변경 표시</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FFFBEB;color:#92400E">응급시 새 권역 기준 이송</div>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:700;color:#A32D2D;margin-bottom:6px">흐름 3 — 응급 대응</div>
+      <div class="step-row">
+        <div class="step-box" style="background:#FFFBEB;color:#92400E">119 신고 접수</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FFFBEB;color:#92400E">산모 즉시 조회</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FCEBEB;color:#A32D2D">SOS 발송</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FAEEDA;color:#854F0B">릴레이 (90초 타임아웃)</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#FDF4FF;color:#6B21A8">병원 수용/거절</div>
+        <div class="step-arrow">→</div>
+        <div class="step-box" style="background:#EAF3DE;color:#166534">수용 확정·이송</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 3: 산모 앱 와이어프레임
+══════════════════════════════════════════════════════ -->
+<div id="app" class="section">
+  <div class="section-header">
+    <h1>산모 앱 와이어프레임</h1>
+    <p>APP-001 ~ APP-008 · 모바일 360×640 기준</p>
+  </div>
+
+  <div class="section-title">온보딩 흐름 (최초 1회)</div>
+  <div class="wf-grid">
+
+    <div class="wf-card">
+      <span class="wf-id green">APP-001 · 회원가입/등록</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:22px">이름 입력</div>
+        <div class="wf-box" style="height:22px">연락처 입력</div>
+        <div class="wf-box" style="height:22px">분만예정일 Date Picker</div>
+        <div class="wf-box" style="height:20px">다태아 여부 Toggle</div>
+        <div class="wf-box" style="height:18px">개인정보 동의 ☑</div>
+        <div class="wf-btn" style="height:28px;background:#1e40af;color:#fff">가입 완료</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id green">APP-002 · 기본 인적정보 입력 <span style="background:#FFF2CC;color:#854F0B;padding:1px 6px;border-radius:8px;font-size:10px">신규</span></span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:22px">임신 주수 확인 (분만예정일 기준 자동계산)</div>
+        <div class="wf-row">
+          <div class="wf-box" style="height:24px;flex:1">키 (cm)</div>
+          <div class="wf-box" style="height:24px;flex:1">몸무게 (kg)</div>
+        </div>
+        <div class="wf-box" style="height:20px">BMI 자동 표시 (읽기전용)</div>
+        <div class="wf-btn" style="height:28px;background:#1e40af;color:#fff">다음</div>
+      </div>
+    </div>
+
+    <div class="wf-card" style="grid-column:span 2">
+      <span class="wf-id coral">APP-003 · 진료정보입력 <span style="background:#FFF2CC;color:#854F0B;padding:1px 6px;border-radius:8px;font-size:10px">신규 통합 · 2트랙</span></span>
+      <div class="tab-bar" style="margin-bottom:10px">
+        <div class="tab active">진단서로 등록하기 (OCR)</div>
+        <div class="tab">직접 입력 (수기)</div>
+      </div>
+      <div class="wf-row">
+        <div class="wf-col" style="flex:1">
+          <div style="font-size:11px;color:#993C1D;font-weight:600;margin-bottom:4px">진단서 업로드 방식</div>
+          <div class="wf-box" style="height:30px;background:#FAECE7;color:#993C1D">파일 업로드 (JPG·PNG·PDF)</div>
+          <div class="wf-box" style="height:36px">OCR/LLM 해석 결과<br><span style="font-size:10px">(자동 입력 — 확인 후 보정 가능)</span></div>
+        </div>
+        <div class="wf-col" style="flex:1">
+          <div style="font-size:11px;color:#185FA5;font-weight:600;margin-bottom:4px">직접 입력 방식</div>
+          <div class="wf-box" style="height:22px;background:#E6F1FB;color:#185FA5">위험요소 영역 Radio (4개)</div>
+          <div class="wf-box" style="height:22px">위험요소 항목 Dropdown</div>
+          <div class="wf-box" style="height:20px">중증도 자동 표시 (읽기전용)</div>
+        </div>
+      </div>
+      <div class="wf-row" style="margin-top:8px">
+        <div class="wf-box" style="flex:1;height:22px">수축기/이완기 혈압</div>
+        <div class="wf-box" style="flex:1;height:22px">혈당</div>
+        <div class="wf-box" style="flex:1;height:22px">체중</div>
+      </div>
+      <div class="wf-box" style="height:18px;margin-top:6px">최근 기록 그래프 (7일 추이)</div>
+      <div class="wf-btn" style="height:28px;margin-top:6px;background:#1e40af;color:#fff">등록 완료</div>
+    </div>
+
+    <div class="wf-card" style="grid-column:span 2">
+      <span class="wf-id" style="background:#dcfce7;color:#166534">APP-004 · 홈 (메인 대시보드) <span style="background:#FFF2CC;color:#854F0B;padding:1px 6px;border-radius:8px;font-size:10px">신규</span></span>
+      <div class="wf-row" style="margin-bottom:8px">
+        <div class="wf-box" style="flex:1;height:50px;background:#FCEBEB;color:#A32D2D;font-weight:600">실제위험도<br>HIGH · 79점</div>
+        <div class="wf-box" style="flex:1;height:50px;background:#EEEDFE;color:#3C3489;font-weight:600">예비위험도<br>정상</div>
+      </div>
+      <div class="wf-box" style="height:56px;margin-bottom:8px">추천병원 1~3순위 리스트<br>(병원명 · 거리 · ETA · NICU)</div>
+      <div class="menu-row">
+        <div class="menu-item"><i class="ti ti-edit"></i>증상일기</div>
+        <div class="menu-item"><i class="ti ti-file-medical"></i>진료정보입력</div>
+        <div class="menu-item"><i class="ti ti-map-pin"></i>체류지</div>
+        <div class="menu-item"><i class="ti ti-bell"></i>알림 🔴</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="section-title">홈에서 분기 — 상시 진입</div>
+  <div class="wf-grid">
+
+    <div class="wf-card">
+      <span class="wf-id coral">APP-005 · 증상일기</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:46px">텍스트 입력 Textarea<br><span style="font-size:10px">placeholder: "요즘 두통이 심하고 눈이 침침해요"</span></div>
+        <div class="wf-row">
+          <div class="wf-box" style="height:20px;flex:1;border-radius:20px">두통</div>
+          <div class="wf-box" style="height:20px;flex:1;border-radius:20px">부종</div>
+          <div class="wf-box" style="height:20px;flex:1;border-radius:20px">출혈</div>
+        </div>
+        <div class="wf-btn" style="height:26px;background:#1e40af;color:#fff">일기 등록</div>
+        <div class="wf-box" style="height:26px">LLM 분석 결과 카드</div>
+        <div class="wf-box" style="height:30px">이전 일기 목록 (최근 7일)</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id">APP-006 · 체류지역 업데이트</span>
+      <div class="wf-col">
+        <div class="wf-row">
+          <div class="wf-box" style="height:24px;flex:1">거주지</div>
+          <div class="wf-box" style="height:24px;flex:1">임시체류지</div>
+        </div>
+        <div class="wf-box" style="height:24px">주소 검색 (카카오/도로명)</div>
+        <div class="wf-box" style="height:20px">체류 종료 예정일 Date Picker</div>
+        <div class="wf-box" style="height:20px">현재 등록 위치 Info Card</div>
+        <div class="wf-btn" style="height:26px;background:#1e40af;color:#fff">업데이트</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id">APP-007 · 알림 내역</span>
+      <div class="wf-col">
+        <div class="wf-row">
+          <div class="wf-box" style="height:20px;flex:1;border-radius:14px">전체</div>
+          <div class="wf-box" style="height:20px;flex:1;border-radius:14px">예비위험</div>
+          <div class="wf-box" style="height:20px;flex:1;border-radius:14px">권고</div>
+        </div>
+        <div class="wf-box" style="height:32px">알림 항목 1 — 방문완료 버튼</div>
+        <div class="wf-box" style="height:32px">알림 항목 2 — 권역 재배정</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id purple">APP-008 · 내 현재상태 (세부)</span>
+      <div class="wf-col">
+        <div class="wf-row">
+          <div class="wf-box" style="height:36px;flex:1;background:#FCEBEB;color:#A32D2D">실제위험도</div>
+          <div class="wf-box" style="height:36px;flex:1;background:#EEEDFE;color:#3C3489">예비위험도</div>
+        </div>
+        <div class="wf-box" style="height:30px">최근 생체정보 Summary Card</div>
+        <div class="wf-box" style="height:24px">담당 보건소 Info Card</div>
+        <div class="wf-btn" style="height:24px;border:1px solid var(--border-strong);color:var(--text-primary)">진료정보입력 바로가기</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 4: 보건소 대시보드
+══════════════════════════════════════════════════════ -->
+<div id="dash" class="section">
+  <div class="section-header">
+    <h1>보건소 대시보드 와이어프레임</h1>
+    <p>DASH-001 ~ DASH-004 · PC 1920×1080 기준</p>
+  </div>
+
+  <div class="wf-grid">
+
+    <div class="wf-card" style="grid-column:span 2">
+      <span class="wf-id">DASH-001 · 산모 현황 목록 (관제 메인)</span>
+      <div class="wf-row" style="margin-bottom:8px">
+        <div class="wf-box" style="height:28px;flex:1">로고 / 보건소명</div>
+        <div class="wf-row" style="flex:2;gap:6px">
+          <div class="wf-box" style="height:28px;flex:1;border-radius:14px">전체</div>
+          <div class="wf-box" style="height:28px;flex:1;border-radius:14px">HIGH</div>
+          <div class="wf-box" style="height:28px;flex:1;border-radius:14px">MEDIUM</div>
+          <div class="wf-box" style="height:28px;flex:1;border-radius:14px">LOW</div>
+          <div class="wf-box" style="height:28px;flex:1;border-radius:14px">예비알림</div>
+        </div>
+        <div class="wf-box" style="height:28px;flex:1">검색 (이름/연락처)</div>
+        <div class="wf-box" style="height:28px;flex:0.7;background:#FCEBEB;color:#A32D2D;font-weight:600">예비위험도 알림 ③</div>
+      </div>
+      <div class="wf-box" style="height:140px">산모 목록 테이블 — 이름 · 임신주수 · 실제위험도 · 예비위험도 · 체류지 · 최근입력일<br>(행 클릭 → DASH-002 상세 프로필)</div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id">DASH-002 · 산모 상세 프로필</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:28px">산모 기본정보 (이름·임신주수·분만예정일·연락처·체류지)</div>
+        <div class="wf-row">
+          <div class="wf-col" style="flex:1">
+            <div class="wf-box" style="height:26px;background:#FCEBEB;color:#A32D2D">위험도 현황 (실제+예비)</div>
+            <div class="wf-box" style="height:26px">위험요소 목록 Tag List</div>
+          </div>
+          <div class="wf-box" style="flex:1.5;height:56px">생체정보 추이 Line Chart<br>(혈압·혈당 30일)</div>
+        </div>
+        <div class="wf-row">
+          <div class="wf-box" style="flex:1;height:36px">증상일기 요약 (최근 3건)</div>
+          <div class="wf-box" style="flex:1;height:36px">추천병원 1~3순위</div>
+        </div>
+        <div class="wf-box" style="height:28px">보건소 메모 Textarea + 저장</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id">DASH-003 · 예비위험도 알림 관리</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:80px">미방문 산모 목록<br>이름 · 권고발송일 · 감지신호 · 경과일수<br><span style="font-size:10px">(경과일↑ 빨간색)</span></div>
+        <div class="wf-row">
+          <div class="wf-btn" style="flex:1;height:28px;background:#EAF3DE;color:#166534;border:1px solid #A7D7A0">방문 확인 처리 ✓</div>
+          <div class="wf-box" style="flex:2;height:28px">보건소 메모 입력</div>
+        </div>
+        <div class="wf-box" style="height:22px">감지 신호 태그 Chip (색상)</div>
+      </div>
+    </div>
+
+    <div class="wf-card" style="grid-column:span 2">
+      <span class="wf-id">DASH-004 · 지역 인프라 현황</span>
+      <div class="wf-row">
+        <div class="wf-box" style="flex:2;height:120px">지역 지도 카카오맵<br>(병원 핀 · 산모 위치 · 분만취약지 오버레이)</div>
+        <div class="wf-col" style="flex:1">
+          <div class="wf-box" style="height:26px">필터: 전체/NICU/고위험전문/권역센터</div>
+          <div class="wf-box" style="height:88px">위험도 분포 Bar Chart<br>(등급별 산모 수)</div>
+        </div>
+      </div>
+      <div class="wf-box" style="height:18px;margin-top:8px">병원 핀 클릭 → 팝업: 병원명 · 전화 · NICU · 병상수</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 5: 119·병원 응급망
+══════════════════════════════════════════════════════ -->
+<div id="ems" class="section">
+  <div class="section-header">
+    <h1>119·병원 응급망 와이어프레임</h1>
+    <p>EMS-001 ~ EMS-004 · 119 태블릿 1024×768 (가로형) / 병원 PC+태블릿</p>
+  </div>
+
+  <div class="wf-grid">
+
+    <div class="wf-card">
+      <span class="wf-id amber">EMS-001 · 119 현장 조회 (태블릿 가로형)</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:28px">검색: 이름 + 연락처 뒷4자리 + 조회 버튼</div>
+        <div class="wf-row">
+          <div class="wf-col" style="flex:1">
+            <div class="wf-box" style="height:50px;background:#FCEBEB;color:#A32D2D">위험요소 카드<br>(항목명 · Grade)</div>
+            <div class="wf-box" style="height:28px">위험도 배지 (실제+예비)</div>
+            <div class="wf-box" style="height:20px">임신 주수</div>
+          </div>
+          <div class="wf-box" style="flex:1.3;height:100px">추천병원 1~3순위<br>(병원명·거리·ETA·NICU·전화)</div>
+        </div>
+        <div class="wf-btn" style="height:32px;background:#E24B4A;color:#fff">SOS 발송 — 1순위 즉시 요청</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id amber">EMS-002 · 현장 증상 추가 입력 (태블릿 가로형)</span>
+      <div class="wf-row">
+        <div class="wf-col" style="flex:1.4">
+          <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">현장 증상 체크리스트 (큰 터치 버튼)</div>
+          <div class="wf-row">
+            <div class="wf-box" style="height:34px;flex:1">출혈</div>
+            <div class="wf-box" style="height:34px;flex:1">양수파수</div>
+            <div class="wf-box" style="height:34px;flex:1">경련</div>
+          </div>
+          <div class="wf-row">
+            <div class="wf-box" style="height:34px;flex:1">심한 두통</div>
+            <div class="wf-box" style="height:34px;flex:1">시야장애</div>
+            <div class="wf-box" style="height:34px;flex:1">복통</div>
+          </div>
+          <div class="wf-box" style="height:30px">태동 감소</div>
+        </div>
+        <div class="wf-col" style="flex:1">
+          <div class="wf-box" style="height:22px">의식 수준 (명료/기면/혼미/혼수)</div>
+          <div class="wf-row">
+            <div class="wf-box" style="height:26px;flex:1">수축기 혈압</div>
+            <div class="wf-box" style="height:26px;flex:1">이완기 혈압</div>
+          </div>
+          <div class="wf-box" style="height:46px">현장 메모 Textarea</div>
+        </div>
+      </div>
+      <div class="wf-btn" style="height:30px;margin-top:8px;background:#E24B4A;color:#fff">수용 요청 발송 (체크 1개 이상 시 활성화)</div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id amber">EMS-003 · 병원 릴레이 상태 (119 태블릿)</span>
+      <div class="wf-col">
+        <div class="step-row">
+          <div class="step-box" style="background:#EFF6FF;color:#1D4ED8;font-size:11px">1순위<br><span style="color:#A32D2D">거절 — NICU 만실</span></div>
+          <div class="step-arrow" style="font-size:12px">→</div>
+          <div class="step-box" style="background:#FAEEDA;color:#854F0B;font-size:11px">2순위<br><span>요청중 45초</span></div>
+          <div class="step-arrow" style="font-size:12px">→</div>
+          <div class="step-box" style="background:#F3F4F6;color:#6B7280;font-size:11px">3순위<br><span>대기</span></div>
+        </div>
+        <div class="wf-box" style="height:26px">병원별 응답 카드 (거절사유·응답시간)</div>
+        <div class="wf-box" style="height:26px;background:#EAF3DE;color:#166534">수용 확정 배너 (병원명·ETA·담당연락처)</div>
+        <div class="alert-card" style="background:#FAEEDA;border-left:3px solid #F59E0B;color:#854F0B;font-size:11px">90초 타임아웃 카운터 — 미응답 시 다음 순위 자동 전달</div>
+      </div>
+    </div>
+
+    <div class="wf-card">
+      <span class="wf-id" style="background:#FFFBEB;color:#92400E">EMS-004 · 병원 수용·거절 응답</span>
+      <div class="wf-col">
+        <div class="wf-box" style="height:64px;background:#FCEBEB;color:#A32D2D">긴급 수용 요청 모달<br>산모정보(마스킹) · 위험요소 · 위험도 · 현장증상</div>
+        <div class="wf-box" style="height:18px">산모 정보 상세 보기 ▼ (Expandable)</div>
+        <div class="wf-box" style="height:22px;background:#FAEEDA;color:#854F0B">⏱ 90초 카운트다운</div>
+        <div class="wf-row">
+          <div class="wf-btn" style="flex:1;height:36px;background:#EAF3DE;color:#166534;border:1px solid #A7D7A0">수용 ✓</div>
+          <div class="wf-btn" style="flex:1;height:36px;background:#FCEBEB;color:#A32D2D;border:1px solid #FCA5A5">거절 ✗</div>
+        </div>
+        <div class="wf-box" style="height:18px">거절사유 모달 (수술실부족/전문의부재/NICU만실/기타)</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- .container -->
+
+<script>
+function show(id, el) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.top-nav a').forEach(a => a.classList.remove('active'));
+  el.classList.add('active');
+  window.scrollTo(0, 0);
+  return false;
+}
+</script>
+</body>
+</html>
