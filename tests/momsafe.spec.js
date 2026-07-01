@@ -16,6 +16,7 @@ function trackErrors(page) {
 
 test('loads the staff console with the 보건소 view active by default', async ({ page }) => {
   const errors = trackErrors(page);
+  await page.addInitScript(() => sessionStorage.setItem('momsafe_staff_role', 'health'));
   await page.goto(url);
 
   await expect(page).toHaveTitle(/고맘워요/);
@@ -27,6 +28,7 @@ test('loads the staff console with the 보건소 view active by default', async 
 
 test('보건소 sub-nav switches between DASH-001/003/004 panels', async ({ page }) => {
   const errors = trackErrors(page);
+  await page.addInitScript(() => sessionStorage.setItem('momsafe_staff_role', 'health'));
   await page.goto(url);
 
   await page.locator('[data-dash="alerts"]').click();
@@ -42,6 +44,7 @@ test('보건소 sub-nav switches between DASH-001/003/004 panels', async ({ page
 
 test('switches to the 119 EMS view and shows the quick-lookup search bar', async ({ page }) => {
   const errors = trackErrors(page);
+  await page.addInitScript(() => sessionStorage.setItem('momsafe_staff_role', 'health'));
   await page.goto(url);
 
   await page.locator('button[data-r="ems"]').click();
@@ -56,6 +59,7 @@ test('switches to the 119 EMS view and shows the quick-lookup search bar', async
 
 test('EMS quick lookup reports no match for an unknown patient', async ({ page }) => {
   const errors = trackErrors(page);
+  await page.addInitScript(() => sessionStorage.setItem('momsafe_staff_role', 'health'));
   await page.goto(url);
   await page.locator('button[data-r="ems"]').click();
 
@@ -70,6 +74,7 @@ test('EMS quick lookup reports no match for an unknown patient', async ({ page }
 
 test('switches to the 병원 hospital view and renders the self-hospital picker', async ({ page }) => {
   const errors = trackErrors(page);
+  await page.addInitScript(() => sessionStorage.setItem('momsafe_staff_role', 'health'));
   await page.goto(url);
 
   await page.locator('button[data-r="hosp"]').click();

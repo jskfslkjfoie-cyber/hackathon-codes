@@ -215,9 +215,56 @@
     .incoming{padding:13px}
     footer{font-size:11px}
   }
+
+  /* ===== 로그인 게이트 ===== */
+  #login-gate{position:fixed;inset:0;z-index:2000;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px}
+  #login-gate.off{display:none}
+  .login-card{width:100%;max-width:400px;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:32px 28px;box-shadow:0 10px 40px rgba(0,0,0,.18)}
+  .login-brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .login-brand .logo{width:40px;height:40px;border-radius:11px;background:linear-gradient(135deg,var(--mom),var(--sys));display:flex;align-items:center;justify-content:center;font-size:20px}
+  .login-brand b{font-size:19px;font-weight:800}
+  .login-sub{color:var(--mut);font-size:12.5px;margin-bottom:22px}
+  .login-label{font-size:12px;font-weight:700;color:var(--mut);margin:16px 0 8px}
+  .role-pick{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+  .role-pick button{background:var(--panel2);border:1px solid var(--line);color:var(--mut);border-radius:10px;padding:12px 6px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;line-height:1.5;transition:.15s}
+  .role-pick button:hover{color:var(--txt)}
+  .role-pick button.on{border-color:var(--mom);color:var(--txt);background:rgba(22,160,133,.1);box-shadow:0 0 0 1px var(--mom) inset}
+  .role-pick button .ico{display:block;font-size:20px;margin-bottom:4px}
+  #login-gate input{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:10px;padding:11px 13px;font-size:14px;font-family:inherit;margin-top:8px}
+  #login-gate input:focus{outline:none;border-color:var(--mom)}
+  .login-btn{width:100%;margin-top:20px;padding:13px;border:none;border-radius:11px;background:var(--mom);color:#fff;font-size:15px;font-weight:800;cursor:pointer;font-family:inherit}
+  .login-btn:hover{filter:brightness(1.05)}
+  .login-hint{font-size:11px;color:var(--dim);margin-top:14px;line-height:1.6}
+  .login-err{color:var(--red);font-size:12px;margin-top:10px;min-height:16px}
+  .logout-btn{flex:0 0 auto;height:38px;padding:0 12px;border-radius:11px;background:var(--panel);border:1px solid var(--line);color:var(--mut);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit}
+  .logout-btn:hover{color:var(--txt);border-color:var(--line2)}
 </style>
 </head>
 <body>
+
+<!-- ===== 로그인 게이트 (유저플로우 1단계: 계정으로 접속) ===== -->
+<div id="login-gate">
+  <div class="login-card">
+    <div class="login-brand"><div class="logo">🤰</div><b>고맘워요 <span style="font-weight:600;color:var(--mut);font-size:13px">관제 콘솔</span></b></div>
+    <div class="login-sub">공공 모자보건 안전망 미들웨어 · 담당자 로그인</div>
+
+    <div class="login-label">역할 선택</div>
+    <div class="role-pick" id="login-roles">
+      <button data-lr="health"><span class="ico">🏥</span>보건소</button>
+      <button data-lr="ems"><span class="ico">🚑</span>119 상황실·현장</button>
+      <button data-lr="hosp"><span class="ico">🛏️</span>병원</button>
+    </div>
+
+    <div class="login-label" style="margin-top:18px">계정</div>
+    <input id="login-id" placeholder="아이디" autocomplete="username">
+    <input id="login-pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+
+    <button class="login-btn" id="login-submit">로그인</button>
+    <div class="login-err" id="login-err"></div>
+    <div class="login-hint">데모 계정 — 역할을 선택하면 아이디/비밀번호가 자동 입력됩니다.<br>보건소 <b>health</b> / 119 <b>ems</b> / 병원 <b>hosp</b> · 비밀번호 <b>1234</b></div>
+  </div>
+</div>
+
 <header>
   <div class="topbar">
     <div class="brand" id="brand-home"><div class="logo">🤰</div><div>고맘워요<small>Mom's Safe · 공공 모자보건 안전망 미들웨어</small></div></div>
@@ -228,6 +275,7 @@
       <button class="r-guide" data-r="guide">📑 데모 가이드</button>
     </div>
     <button id="theme-btn" class="theme-btn" title="화면 모드 전환" aria-label="라이트/다크 모드 전환"></button>
+    <button id="logout-btn" class="logout-btn" title="로그아웃">로그아웃</button>
   </div>
 </header>
 
@@ -564,6 +612,37 @@ watchEmergencyRequests(list=>{ REQUESTS=list; if(role==='hosp') { renderHosp(); 
 
 /* ===================== 역할 라우팅 ===================== */
 document.querySelectorAll('.roles button').forEach(b=>b.addEventListener('click', ()=>setRole(b.dataset.r)));
+
+/* ===================== 로그인 게이트 (유저플로우 1단계) ===================== */
+const DEMO_ACCOUNTS = { health:{id:'health',pw:'1234'}, ems:{id:'ems',pw:'1234'}, hosp:{id:'hosp',pw:'1234'} };
+const ROLE_LABEL = { health:'보건소', ems:'119', hosp:'병원' };
+let loginRole = 'health';
+const gate = document.getElementById('login-gate');
+function selectLoginRole(r){
+  loginRole = r;
+  document.querySelectorAll('#login-roles button').forEach(b=>b.classList.toggle('on', b.dataset.lr===r));
+  document.getElementById('login-id').value = DEMO_ACCOUNTS[r].id;
+  document.getElementById('login-pw').value = DEMO_ACCOUNTS[r].pw;
+  document.getElementById('login-err').textContent = '';
+}
+document.querySelectorAll('#login-roles button').forEach(b=>b.addEventListener('click', ()=>selectLoginRole(b.dataset.r)));
+function doLogin(){
+  const id=document.getElementById('login-id').value.trim(), pw=document.getElementById('login-pw').value.trim();
+  const acc=DEMO_ACCOUNTS[loginRole];
+  if(id!==acc.id || pw!==acc.pw){ document.getElementById('login-err').textContent='아이디 또는 비밀번호가 올바르지 않습니다. (데모 계정을 사용하세요)'; return; }
+  sessionStorage.setItem('momsafe_staff_role', loginRole);
+  gate.classList.add('off');
+  setRole(loginRole);
+}
+document.getElementById('login-submit').addEventListener('click', doLogin);
+document.getElementById('login-pw').addEventListener('keydown', e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('logout-btn').addEventListener('click', ()=>{ sessionStorage.removeItem('momsafe_staff_role'); gate.classList.remove('off'); });
+(function initGate(){
+  const saved = sessionStorage.getItem('momsafe_staff_role');
+  if(saved && DEMO_ACCOUNTS[saved]){ gate.classList.add('off'); setRole(saved); }
+  else { selectLoginRole('health'); }
+})();
+
 function setRole(r){
   role=r;
   document.querySelectorAll('.roles button').forEach(b=>b.classList.toggle('on', b.dataset.r===r));
